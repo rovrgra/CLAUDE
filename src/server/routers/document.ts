@@ -46,8 +46,9 @@ export const documentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { organizationId: _, id, ...data } = input;
-      return ctx.prisma.document.update({ where: { id }, data });
+      const { id, organizationId: _orgId, ...updateData } = input;
+      void _orgId;
+      return ctx.prisma.document.update({ where: { id }, data: updateData });
     }),
 
   delete: orgProcedure

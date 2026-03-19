@@ -87,7 +87,8 @@ export const appointmentRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { organizationId, id, ...data } = input;
+      const { organizationId: _, id, ...data } = input;
+      void _;
       return ctx.prisma.appointment.update({
         where: { id },
         data: {

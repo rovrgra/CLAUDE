@@ -65,4 +65,48 @@ export const organizationRouter = router({
         totalRevenue: invoices._sum.total ?? 0,
       };
     }),
+
+  notifications: orgProcedure
+    .input(z.object({ organizationId: z.string() }))
+    .query(async ({ ctx }) => {
+      return ctx.prisma.notification.findMany({
+        where: { organizationId: ctx.organizationId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      });
+    }),
+
+  markNotificationRead: orgProcedure
+    .input(z.object({ organizationId: z.string(), id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.notification.update({
+        where: { id: input.id },
+        data: { isRead: true },
+      });
+    }),
+
+  recentActivity: orgProcedure
+    .input(z.object({ organizationId: z.string() }))
+    .query(async ({ ctx }) => {
+      const [recentAppointments, recentConversations, recentPatients] = await Promise.all([
+        ctx.prisma.appointment.findMany({
+          where: { organizationId: ctx.organizationId },
+          include: { patient: { select: { firstName: true, lastName: true } }, service: { select: { name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        }),
+        ctx.prisma.conversation.findMany({
+          where: { organizationId: ctx.organizationId },
+          include: { patient: { select: { firstName: true, lastName: true } } },
+          orderBy: { lastMessageAt: "desc" },
+          take: 5,
+        }),
+        ctx.prisma.patient.findMany({
+          where: { organizationId: ctx.organizationId },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        }),
+      ]);
+      return { recentAppointments, recentConversations, recentPatients };
+    }),
 });

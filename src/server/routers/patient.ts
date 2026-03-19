@@ -98,8 +98,9 @@ export const patientRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { organizationId: _, id, ...data } = input;
-      return ctx.prisma.patient.update({ where: { id }, data });
+      const { id, organizationId: _orgId, ...updateData } = input;
+      void _orgId;
+      return ctx.prisma.patient.update({ where: { id }, data: updateData });
     }),
 
   delete: orgProcedure

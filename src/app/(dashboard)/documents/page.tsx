@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, FileText, Bot, Loader2, Trash2, Edit2 } from "lucide-react";
+import { Plus, FileText, Bot, Loader2, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOrg } from "@/lib/org-context";
 
