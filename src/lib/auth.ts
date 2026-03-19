@@ -50,16 +50,14 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).id = token.id as string;
-      }
+      session.user.id = token.id;
 
       // Load active memberships
       const members = await prisma.member.findMany({
-        where: { userId: token.id as string, isActive: true },
+        where: { userId: token.id, isActive: true },
         include: { organization: { select: { id: true, name: true, slug: true } } },
       });
-      (session as any).memberships = members.map((m) => ({
+      session.memberships = members.map((m) => ({
         id: m.id,
         role: m.role,
         organization: m.organization,
