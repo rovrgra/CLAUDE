@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bot, Loader2 } from "lucide-react";
+import { UtensilsCrossed, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 export default function RegisterPage() {
@@ -26,9 +26,9 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-lg">
         <div className="text-center">
-          <Bot className="mx-auto h-12 w-12 text-primary-600" />
+          <UtensilsCrossed className="mx-auto h-12 w-12 text-primary-600" />
           <h2 className="mt-4 text-2xl font-bold text-gray-900">Crear cuenta</h2>
-          <p className="mt-2 text-sm text-gray-600">Comienza a gestionar tu clínica con IA</p>
+          <p className="mt-2 text-sm text-gray-600">Automatiza tu restaurante con IA y WhatsApp</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,14 +71,14 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nombre de la clínica</label>
+            <label className="block text-sm font-medium text-gray-700">Nombre del restaurante</label>
             <input
               type="text"
               value={form.organizationName}
               onChange={(e) => setForm({ ...form, organizationName: e.target.value })}
               required
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="Ej: Clínica Dental Sonrisa"
+              placeholder="Ej: La Pizzería de Juan"
             />
           </div>
 

@@ -4,8 +4,8 @@ import { AuthProvider } from "@/lib/auth-provider";
 import { TRPCProvider } from "@/lib/trpc-provider";
 
 export const metadata: Metadata = {
-  title: "Dental CRM - Gestión Inteligente",
-  description: "CRM con IA para clínicas dentales",
+  title: "RestoBot - Tu restaurante en WhatsApp",
+  description: "CRM con IA para restaurantes. Pedidos, reservas y atención automatizada por WhatsApp.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

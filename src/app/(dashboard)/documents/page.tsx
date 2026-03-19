@@ -6,17 +6,18 @@ import { trpc } from "@/lib/trpc";
 import { useOrg } from "@/lib/org-context";
 
 const docTypes = [
-  { value: "faq", label: "FAQ / Preguntas frecuentes" },
-  { value: "protocol", label: "Protocolo clínico" },
+  { value: "menu", label: "Carta / Menú" },
+  { value: "faq", label: "Preguntas frecuentes" },
   { value: "price-list", label: "Lista de precios" },
-  { value: "consent", label: "Consentimiento informado" },
   { value: "info", label: "Información general" },
+  { value: "promo", label: "Promociones" },
+  { value: "policy", label: "Políticas (reservas, cancelación)" },
 ];
 
-export default function DocumentsPage() {
+export default function MenuDocsPage() {
   const { organizationId } = useOrg();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newDoc, setNewDoc] = useState({ name: "", type: "faq", content: "" });
+  const [newDoc, setNewDoc] = useState({ name: "", type: "menu", content: "" });
 
   const { data: documents, isLoading } = trpc.document.list.useQuery(
     { organizationId },
@@ -29,7 +30,7 @@ export default function DocumentsPage() {
     onSuccess: () => {
       utils.document.list.invalidate();
       setShowCreateModal(false);
-      setNewDoc({ name: "", type: "faq", content: "" });
+      setNewDoc({ name: "", type: "menu", content: "" });
     },
   });
 
@@ -41,8 +42,8 @@ export default function DocumentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-          <p className="text-gray-600">Base de conocimiento para el agente IA</p>
+          <h1 className="text-2xl font-bold text-gray-900">Carta y Menú</h1>
+          <p className="text-gray-600">Base de conocimiento para el bot de WhatsApp</p>
         </div>
         <button onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
@@ -56,7 +57,7 @@ export default function DocumentsPage() {
           <div>
             <p className="text-sm font-medium text-primary-900">Base de conocimiento IA</p>
             <p className="text-xs text-primary-700">
-              Los documentos que agregues aquí serán utilizados por el agente IA para responder preguntas de tus pacientes.
+              Sube tu carta, precios, horarios y políticas. El bot usará esta info para responder a tus clientes por WhatsApp.
             </p>
           </div>
         </div>
@@ -73,7 +74,7 @@ export default function DocumentsPage() {
                   <FileText className="h-8 w-8 text-primary-500" />
                   <div>
                     <p className="font-medium text-gray-900">{doc.name}</p>
-                    <p className="text-xs text-gray-500">{doc.type} - {doc.chunkCount} chunks</p>
+                    <p className="text-xs text-gray-500">{doc.type}</p>
                   </div>
                 </div>
                 <button onClick={() => deleteDoc.mutate({ organizationId, id: doc.id })}
@@ -109,7 +110,8 @@ export default function DocumentsPage() {
                   <label className="block text-sm font-medium text-gray-700">Nombre</label>
                   <input type="text" required value={newDoc.name}
                     onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Ej: Carta Almuerzo, Menú Delivery..." />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tipo</label>
@@ -124,7 +126,7 @@ export default function DocumentsPage() {
                 <textarea rows={12} required value={newDoc.content}
                   onChange={(e) => setNewDoc({ ...newDoc, content: e.target.value })}
                   className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  placeholder="Escribe o pega el contenido del documento aquí..." />
+                  placeholder="Pega aquí tu carta, menú o información..." />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowCreateModal(false)}
@@ -132,7 +134,7 @@ export default function DocumentsPage() {
                 <button type="submit" disabled={createDoc.isPending}
                   className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
                   {createDoc.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Guardar documento
+                  Guardar
                 </button>
               </div>
             </form>

@@ -73,7 +73,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-gray-600">Administra tu clínica y el agente IA</p>
+        <p className="text-gray-600">Administra tu restaurante y el bot de WhatsApp</p>
       </div>
 
       <div className="flex gap-6">
@@ -92,18 +92,20 @@ export default function SettingsPage() {
           {/* General Tab */}
           {activeTab === "general" && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Información de la clínica</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Información del restaurante</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Nombre de la clínica</label>
+                  <label className="block text-sm font-medium text-gray-700">Nombre del restaurante</label>
                   <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Tipo de negocio</label>
+                  <label className="block text-sm font-medium text-gray-700">Tipo de cocina</label>
                   <select value={form.businessType} onChange={(e) => setForm({ ...form, businessType: e.target.value })} className={inputClass}>
-                    <option value="dental_clinic">Clínica dental</option>
-                    <option value="medical_clinic">Clínica médica</option>
-                    <option value="beauty_salon">Salón de belleza</option>
+                    <option value="restaurant">Restaurante</option>
+                    <option value="fast_food">Comida rápida</option>
+                    <option value="cafe">Café / Cafetería</option>
+                    <option value="bar">Bar / Pub</option>
+                    <option value="dark_kitchen">Dark Kitchen</option>
                     <option value="other">Otro</option>
                   </select>
                 </div>
@@ -128,7 +130,7 @@ export default function SettingsPage() {
           {activeTab === "ai" && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900">Configuración del Agente IA</h2>
-              <p className="text-sm text-gray-500">El agente usa Claude (Anthropic) para responder automáticamente a los pacientes por WhatsApp.</p>
+              <p className="text-sm text-gray-500">El bot usa Claude (Anthropic) para responder automáticamente a tus clientes por WhatsApp.</p>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Nombre del agente</label>
@@ -144,7 +146,7 @@ export default function SettingsPage() {
                   <label className="block text-sm font-medium text-gray-700">Instrucciones personalizadas</label>
                   <textarea rows={6} value={form.aiAgentInstructions} onChange={(e) => setForm({ ...form, aiAgentInstructions: e.target.value })}
                     className={inputClass}
-                    placeholder="Ej: Siempre ofrece agendar una cita cuando el paciente pregunte por precios. Nunca des diagnósticos médicos. Recomienda visitar la clínica para evaluaciones." />
+                    placeholder="Ej: Siempre sugiere los platos del día. Ofrece hacer reserva cuando pregunten disponibilidad. No hagas descuentos sin autorización." />
                 </div>
                 <div className="flex items-center gap-3">
                   <input type="checkbox" id="autoReply" checked={form.aiAutoReply}
@@ -171,7 +173,7 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">WhatsApp Business</p>
-                      <p className="text-sm text-gray-500">Recibe y responde mensajes de pacientes</p>
+                      <p className="text-sm text-gray-500">Recibe pedidos y reservas de clientes</p>
                     </div>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-medium ${

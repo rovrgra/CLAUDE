@@ -4,18 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, MessageSquare, Calendar,
-  FileText, Megaphone, FolderOpen, Settings, LogOut, Bot,
+  FileText, Megaphone, FolderOpen, Settings, LogOut, UtensilsCrossed,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Pacientes", href: "/patients", icon: Users },
+  { name: "Clientes", href: "/patients", icon: Users },
   { name: "Conversaciones", href: "/conversations", icon: MessageSquare },
-  { name: "Citas", href: "/appointments", icon: Calendar },
-  { name: "Facturación", href: "/invoices", icon: FileText },
+  { name: "Reservas", href: "/appointments", icon: Calendar },
+  { name: "Pedidos", href: "/invoices", icon: FileText },
   { name: "Campañas", href: "/campaigns", icon: Megaphone },
-  { name: "Documentos", href: "/documents", icon: FolderOpen },
+  { name: "Carta / Menú", href: "/documents", icon: FolderOpen },
   { name: "Configuración", href: "/settings", icon: Settings },
 ];
 
@@ -25,8 +25,8 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
       <div className="flex h-16 items-center gap-2 border-b px-6">
-        <Bot className="h-8 w-8 text-primary-600" />
-        <span className="text-lg font-bold text-gray-900">DentalCRM</span>
+        <UtensilsCrossed className="h-8 w-8 text-primary-600" />
+        <span className="text-lg font-bold text-gray-900">RestoBot</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">

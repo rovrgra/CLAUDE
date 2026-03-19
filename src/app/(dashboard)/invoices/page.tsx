@@ -16,12 +16,12 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  DRAFT: "Borrador", SENT: "Enviada", PAID: "Pagada",
-  PARTIALLY_PAID: "Pago parcial", OVERDUE: "Vencida",
-  CANCELLED: "Cancelada", REFUNDED: "Reembolsada",
+  DRAFT: "Preparando", SENT: "Enviado", PAID: "Pagado",
+  PARTIALLY_PAID: "Pago parcial", OVERDUE: "Vencido",
+  CANCELLED: "Cancelado", REFUNDED: "Reembolsado",
 };
 
-export default function InvoicesPage() {
+export default function OrdersPage() {
   const { organizationId } = useOrg();
   const [page, setPage] = useState(1);
 
@@ -34,11 +34,11 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Facturación</h1>
-          <p className="text-gray-600">{data?.total ?? 0} facturas</p>
+          <h1 className="text-2xl font-bold text-gray-900">Pedidos</h1>
+          <p className="text-gray-600">{data?.total ?? 0} pedidos</p>
         </div>
         <button className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
-          <Plus className="h-4 w-4" />Nueva factura
+          <Plus className="h-4 w-4" />Nuevo pedido
         </button>
       </div>
 
@@ -46,8 +46,8 @@ export default function InvoicesPage() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">N° Factura</th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Paciente</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">N° Pedido</th>
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Cliente</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Estado</th>
               <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fecha</th>
@@ -57,7 +57,7 @@ export default function InvoicesPage() {
             {isLoading ? (
               <tr><td colSpan={5} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" /></td></tr>
             ) : !data?.invoices.length ? (
-              <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">No hay facturas aún</td></tr>
+              <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">No hay pedidos aún</td></tr>
             ) : (
               data.invoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-gray-50">

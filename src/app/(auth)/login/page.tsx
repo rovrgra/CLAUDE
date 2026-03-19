@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bot, Loader2 } from "lucide-react";
+import { UtensilsCrossed, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,9 +36,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-lg">
         <div className="text-center">
-          <Bot className="mx-auto h-12 w-12 text-primary-600" />
+          <UtensilsCrossed className="mx-auto h-12 w-12 text-primary-600" />
           <h2 className="mt-4 text-2xl font-bold text-gray-900">Iniciar sesión</h2>
-          <p className="mt-2 text-sm text-gray-600">Ingresa a tu cuenta de DentalCRM</p>
+          <p className="mt-2 text-sm text-gray-600">Ingresa a tu cuenta de RestoBot</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -12,11 +12,11 @@ interface AiAgentConfig {
 }
 
 interface ConversationContext {
-  patientName: string;
-  patientHistory: string;
+  clientName: string;
+  clientNotes: string;
   recentMessages: { role: "user" | "assistant"; content: string }[];
-  services: { name: string; duration: number; price: number }[];
-  availableSlots?: string[];
+  menuItems: { name: string; price: number; description?: string }[];
+  documents: { name: string; content: string }[];
 }
 
 export async function generateAiResponse(
@@ -46,28 +46,36 @@ export async function generateAiResponse(
 }
 
 function buildSystemPrompt(config: AiAgentConfig, context: ConversationContext): string {
-  const serviceList = context.services
-    .map((s) => `- ${s.name}: ${s.duration} min, $${s.price}`)
+  const menuList = context.menuItems
+    .map((s) => `- ${s.name}: $${s.price.toLocaleString("es-CL")}${s.description ? ` (${s.description})` : ""}`)
     .join("\n");
 
-  return `Eres ${config.agentName}, un asistente virtual ${config.personality} para una clínica dental.
+  const docsContext = context.documents
+    .map((d) => `--- ${d.name} ---\n${d.content}`)
+    .join("\n\n");
+
+  return `Eres ${config.agentName}, un asistente virtual ${config.personality} para un restaurante.
 
 REGLAS:
 - Responde siempre en español (Chile/Latinoamérica)
-- Sé conciso y profesional
-- Puedes agendar citas, responder preguntas sobre servicios y precios
-- Si no puedes resolver algo, indica que un humano se pondrá en contacto
-- Nunca des diagnósticos médicos
-- Usa formato amigable para WhatsApp (sin markdown complejo)
+- Sé amable, cercano y conciso
+- Puedes tomar pedidos, hacer reservas, responder sobre la carta y precios
+- Confirma siempre el pedido antes de finalizar (repite items y total)
+- Si preguntan por delivery, confirma dirección y tiempo estimado
+- Si no puedes resolver algo, indica que un encargado se pondrá en contacto
+- Usa formato amigable para WhatsApp (sin markdown complejo, usa emojis moderadamente)
+- Para reservas pregunta: fecha, hora, cantidad de personas y nombre
 
-SERVICIOS DISPONIBLES:
-${serviceList || "No hay servicios configurados aún."}
+CARTA / MENÚ:
+${menuList || "No hay platos configurados aún."}
 
-INFORMACIÓN DEL PACIENTE:
-Nombre: ${context.patientName}
-${context.patientHistory ? `Historial: ${context.patientHistory}` : ""}
+${docsContext ? `INFORMACIÓN ADICIONAL:\n${docsContext}` : ""}
 
-${config.instructions ? `INSTRUCCIONES ADICIONALES:\n${config.instructions}` : ""}`;
+CLIENTE:
+Nombre: ${context.clientName}
+${context.clientNotes ? `Notas: ${context.clientNotes}` : ""}
+
+${config.instructions ? `INSTRUCCIONES DEL DUEÑO:\n${config.instructions}` : ""}`;
 }
 
 export async function processIncomingMessage(
@@ -91,9 +99,15 @@ export async function processIncomingMessage(
 
   if (!conversation.aiEnabled || conversation.aiHandedOff) return null;
 
-  const services = await prisma.service.findMany({
-    where: { organizationId, isActive: true },
-  });
+  const [services, documents] = await Promise.all([
+    prisma.service.findMany({
+      where: { organizationId, isActive: true },
+    }),
+    prisma.document.findMany({
+      where: { organizationId },
+      select: { name: true, content: true },
+    }),
+  ]);
 
   const recentMessages = conversation.messages
     .reverse()
@@ -111,15 +125,19 @@ export async function processIncomingMessage(
       businessType: org.businessType,
     },
     {
-      patientName: conversation.patient
+      clientName: conversation.patient
         ? `${conversation.patient.firstName} ${conversation.patient.lastName}`
-        : "Paciente",
-      patientHistory: conversation.patient?.medicalNotes || "",
+        : "Cliente",
+      clientNotes: conversation.patient?.medicalNotes || "",
       recentMessages,
-      services: services.map((s) => ({
+      menuItems: services.map((s) => ({
         name: s.name,
-        duration: s.duration,
         price: Number(s.price),
+        description: s.description || undefined,
+      })),
+      documents: documents.map((d) => ({
+        name: d.name,
+        content: d.content,
       })),
     }
   );

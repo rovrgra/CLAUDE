@@ -40,26 +40,26 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Resumen de tu clínica</p>
+        <p className="text-gray-600">Resumen de tu restaurante</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Pacientes totales" value={stats?.totalPatients ?? 0} icon={Users} color="bg-blue-500" href="/patients" />
-        <StatCard title="Conversaciones abiertas" value={stats?.openConversations ?? 0} icon={MessageSquare} color="bg-green-500" href="/conversations" />
-        <StatCard title="Citas próximas" value={stats?.upcomingAppointments ?? 0} icon={Calendar} color="bg-purple-500" href="/appointments" />
+        <StatCard title="Clientes totales" value={stats?.totalPatients ?? 0} icon={Users} color="bg-blue-500" href="/patients" />
+        <StatCard title="Chats abiertos" value={stats?.openConversations ?? 0} icon={MessageSquare} color="bg-green-500" href="/conversations" />
+        <StatCard title="Reservas próximas" value={stats?.upcomingAppointments ?? 0} icon={Calendar} color="bg-purple-500" href="/appointments" />
         <StatCard title="Ingresos totales" value={`$${Number(stats?.totalRevenue ?? 0).toLocaleString("es-CL")}`} icon={DollarSign} color="bg-yellow-500" href="/invoices" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Citas próximas */}
+        {/* Reservas próximas */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Citas próximas</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Reservas próximas</h3>
             <Link href="/appointments" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todas</Link>
           </div>
           <div className="mt-4 space-y-3">
             {!activity?.recentAppointments.length ? (
-              <p className="text-sm text-gray-500">No hay citas próximas</p>
+              <p className="text-sm text-gray-500">No hay reservas próximas</p>
             ) : (
               activity.recentAppointments.map((apt) => (
                 <div key={apt.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
@@ -71,7 +71,7 @@ export default function DashboardPage() {
                       {apt.patient.firstName} {apt.patient.lastName}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {apt.service?.name || apt.title} - {new Date(apt.startTime).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })} {new Date(apt.startTime).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                      {apt.title || apt.service?.name || "Reserva"} - {new Date(apt.startTime).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })} {new Date(apt.startTime).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
@@ -90,8 +90,8 @@ export default function DashboardPage() {
         {/* Conversaciones recientes */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Conversaciones recientes</h3>
-            <Link href="/conversations" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todas</Link>
+            <h3 className="text-lg font-semibold text-gray-900">Chats recientes</h3>
+            <Link href="/conversations" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todos</Link>
           </div>
           <div className="mt-4 space-y-3">
             {!activity?.recentConversations.length ? (
@@ -123,25 +123,25 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Nuevos pacientes */}
+        {/* Clientes recientes */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Pacientes recientes</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Clientes recientes</h3>
             <Link href="/patients" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todos</Link>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {!activity?.recentPatients.length ? (
-              <p className="text-sm text-gray-500">No hay pacientes aún</p>
+              <p className="text-sm text-gray-500">No hay clientes aún</p>
             ) : (
-              activity.recentPatients.map((patient) => (
-                <Link key={patient.id} href={`/patients/${patient.id}`}
+              activity.recentPatients.map((client) => (
+                <Link key={client.id} href={`/patients/${client.id}`}
                   className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 hover:bg-gray-50">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100">
                     <UserPlus className="h-4 w-4 text-blue-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{patient.firstName} {patient.lastName}</p>
-                    <p className="text-xs text-gray-500">{patient.source || "directo"}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">{client.firstName} {client.lastName}</p>
+                    <p className="text-xs text-gray-500">{client.source === "whatsapp" ? "WhatsApp" : "Directo"}</p>
                   </div>
                 </Link>
               ))

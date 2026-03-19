@@ -51,7 +51,7 @@ export function Header() {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
-          placeholder="Buscar pacientes, conversaciones..."
+          placeholder="Buscar clientes, conversaciones..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setShowResults(true); }}
           onFocus={() => search.length >= 2 && setShowResults(true)}
