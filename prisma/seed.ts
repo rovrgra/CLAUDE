@@ -322,6 +322,101 @@ Tiempo estimado: 30-45 minutos.
     },
   });
 
+  // Create menu categories and items
+  const entradas = await prisma.menuCategory.create({
+    data: {
+      organizationId: org.id, name: "Entradas", description: "Para compartir", sortOrder: 1,
+    },
+  });
+  const fondos = await prisma.menuCategory.create({
+    data: {
+      organizationId: org.id, name: "Platos de Fondo", description: "Nuestros clásicos", sortOrder: 2,
+    },
+  });
+  const ensaladas = await prisma.menuCategory.create({
+    data: {
+      organizationId: org.id, name: "Ensaladas", description: "Frescas y saludables", sortOrder: 3,
+    },
+  });
+  const postres = await prisma.menuCategory.create({
+    data: {
+      organizationId: org.id, name: "Postres", description: "Para endulzar", sortOrder: 4,
+    },
+  });
+  const bebidas = await prisma.menuCategory.create({
+    data: {
+      organizationId: org.id, name: "Bebidas", description: "Tragos y refrescos", sortOrder: 5,
+    },
+  });
+
+  await prisma.menuItem.createMany({
+    data: [
+      // Entradas
+      { organizationId: org.id, categoryId: entradas.id, name: "Empanadas de pino (3 unidades)", description: "Empanadas al horno con carne, huevo, aceituna y pasas", price: 5990, preparationTime: 15, isFeatured: true },
+      { organizationId: org.id, categoryId: entradas.id, name: "Ceviche mixto", description: "Pescado y camarones en limón con cebolla morada y cilantro", price: 11990, preparationTime: 15 },
+      { organizationId: org.id, categoryId: entradas.id, name: "Tabla de quesos y fiambres", description: "Selección de quesos, jamón serrano y aceitunas", price: 12990, preparationTime: 10 },
+      { organizationId: org.id, categoryId: entradas.id, name: "Provoleta a la parrilla", description: "Queso provolone grillado con orégano y tomate", price: 7990, preparationTime: 12 },
+      // Platos de fondo
+      { organizationId: org.id, categoryId: fondos.id, name: "Lomo a lo pobre", description: "Lomo vetado con papas fritas, cebolla caramelizada y huevos fritos", price: 14990, preparationTime: 30, isFeatured: true },
+      { organizationId: org.id, categoryId: fondos.id, name: "Pastel de choclo", description: "Pastel de choclo tradicional con pino de carne", price: 9990, preparationTime: 25 },
+      { organizationId: org.id, categoryId: fondos.id, name: "Parrillada para 2", description: "Entraña, chorizo, pollo, ensaladas y papas", price: 29990, preparationTime: 40, isFeatured: true },
+      { organizationId: org.id, categoryId: fondos.id, name: "Costillar BBQ", description: "Costillar de cerdo glaseado con salsa BBQ ahumada", price: 16990, preparationTime: 35 },
+      { organizationId: org.id, categoryId: fondos.id, name: "Salmón grillado", description: "Salmón con puré de coliflor y vegetales asados", price: 15990, preparationTime: 25 },
+      { organizationId: org.id, categoryId: fondos.id, name: "Pollo al disco", description: "Pollo con verduras al disco de arado", price: 11990, preparationTime: 30 },
+      // Ensaladas
+      { organizationId: org.id, categoryId: ensaladas.id, name: "Ensalada César", description: "Lechuga romana, pollo grillado, crutones, parmesano y aderezo César", price: 7990, preparationTime: 10 },
+      { organizationId: org.id, categoryId: ensaladas.id, name: "Ensalada chilena", description: "Tomate, cebolla, cilantro y limón", price: 4990, preparationTime: 8 },
+      { organizationId: org.id, categoryId: ensaladas.id, name: "Ensalada mediterránea", description: "Mix de hojas, tomate cherry, aceitunas, queso feta y vinagreta", price: 8990, preparationTime: 10 },
+      // Postres
+      { organizationId: org.id, categoryId: postres.id, name: "Tres leches", description: "Bizcocho bañado en tres leches con merengue tostado", price: 5490, preparationTime: 5 },
+      { organizationId: org.id, categoryId: postres.id, name: "Flan casero", description: "Flan de huevo con caramelo", price: 4490, preparationTime: 5 },
+      { organizationId: org.id, categoryId: postres.id, name: "Volcán de chocolate", description: "Bizcocho tibio con centro de chocolate fundido y helado", price: 6990, preparationTime: 12 },
+      // Bebidas
+      { organizationId: org.id, categoryId: bebidas.id, name: "Pisco Sour", description: "Pisco, limón de pica, azúcar, clara de huevo y amargo de angostura", price: 5990, preparationTime: 5 },
+      { organizationId: org.id, categoryId: bebidas.id, name: "Limonada casera", description: "Limonada natural con menta y jengibre", price: 3490, preparationTime: 5 },
+      { organizationId: org.id, categoryId: bebidas.id, name: "Cerveza artesanal", description: "Cerveza del día (consultar disponibilidad)", price: 4990, preparationTime: 2 },
+      { organizationId: org.id, categoryId: bebidas.id, name: "Copa de vino", description: "Tinto o blanco de la casa", price: 4990, preparationTime: 2 },
+      { organizationId: org.id, categoryId: bebidas.id, name: "Bebida / Agua", description: "Coca-Cola, Fanta, Sprite o agua mineral", price: 1990, preparationTime: 1 },
+    ],
+  });
+
+  // Create tables
+  await prisma.table.createMany({
+    data: [
+      { organizationId: org.id, number: 1, name: "Ventana 1", section: "Interior", capacity: 2 },
+      { organizationId: org.id, number: 2, name: "Ventana 2", section: "Interior", capacity: 2 },
+      { organizationId: org.id, number: 3, section: "Interior", capacity: 4 },
+      { organizationId: org.id, number: 4, section: "Interior", capacity: 4 },
+      { organizationId: org.id, number: 5, section: "Interior", capacity: 6 },
+      { organizationId: org.id, number: 6, name: "Familiar", section: "Interior", capacity: 8 },
+      { organizationId: org.id, number: 7, section: "Terraza", capacity: 2 },
+      { organizationId: org.id, number: 8, section: "Terraza", capacity: 4 },
+      { organizationId: org.id, number: 9, section: "Terraza", capacity: 4 },
+      { organizationId: org.id, number: 10, section: "Terraza", capacity: 6 },
+      { organizationId: org.id, number: 11, name: "Barra 1", section: "Barra", capacity: 2 },
+      { organizationId: org.id, number: 12, name: "Barra 2", section: "Barra", capacity: 2 },
+    ],
+  });
+
+  // Create a sample order
+  await prisma.order.create({
+    data: {
+      organizationId: org.id, number: 1, type: "DINE_IN", status: "COMPLETED",
+      source: "POS", patientId: clients[0].id, customerName: "María González",
+      subtotal: 42960, tax: 8163, total: 51123,
+      paymentMethod: "CARD", paymentStatus: "COMPLETED",
+      items: {
+        createMany: {
+          data: [
+            { name: "Parrillada para 2", quantity: 1, unitPrice: 29990, total: 29990, status: "READY" },
+            { name: "Pisco Sour", quantity: 2, unitPrice: 5990, total: 11980, status: "READY" },
+            { name: "Agua mineral", quantity: 1, unitPrice: 1990, total: 1990, status: "READY" },
+          ],
+        },
+      },
+    },
+  });
+
   // Create notifications
   await prisma.notification.createMany({
     data: [
