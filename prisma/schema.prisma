@@ -43,20 +43,24 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members       Member[]
-  patients      Patient[]
-  conversations Conversation[]
-  appointments  Appointment[]
-  services      Service[]
-  invoices      Invoice[]
-  campaigns     Campaign[]
-  automations   Automation[]
-  documents     Document[]
-  templates     MessageTemplate[]
-  tags          Tag[]
-  customFields  CustomField[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
+  members        Member[]
+  patients       Patient[]
+  conversations  Conversation[]
+  appointments   Appointment[]
+  services       Service[]
+  invoices       Invoice[]
+  campaigns      Campaign[]
+  automations    Automation[]
+  documents      Document[]
+  templates      MessageTemplate[]
+  tags           Tag[]
+  customFields   CustomField[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  tables         Table[]
+  orders         Order[]
 
   @@index([slug])
 }
@@ -179,6 +183,7 @@ model Patient {
   tags              PatientTag[]
   customFieldValues CustomFieldValue[]
   documents         PatientDocument[]
+  orders            Order[]
 
   @@index([organizationId, phone])
   @@index([organizationId, email])
@@ -371,6 +376,7 @@ model Service {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   invoiceItems InvoiceItem[]
+  menuItems    MenuItem[]
 }
 
 model Appointment {
@@ -682,6 +688,237 @@ model PatientDocument {
   createdAt DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+// ==================== RESTAURANTE: MENÚ, MESAS, PEDIDOS ====================
+
+model MenuCategory {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  image          String?
+  sortOrder      Int     @default(0)
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+
+  @@index([organizationId, sortOrder])
+}
+
+model MenuItem {
+  id             String  @id @default(cuid())
+  organizationId String
+  categoryId     String
+  serviceId      String? // Link to Service for pricing
+
+  name         String
+  description  String?
+  image        String?
+  price        Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2) // Precio tachado (promo)
+  sortOrder    Int      @default(0)
+
+  isActive        Boolean @default(true)
+  isAvailable     Boolean @default(true) // Se puede marcar como "agotado"
+  isFeatured      Boolean @default(false) // Plato destacado
+  preparationTime Int     @default(15) // Minutos
+  calories        Int?
+
+  // Inventario
+  trackInventory Boolean @default(false)
+  stockQuantity  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       MenuCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  service        Service?            @relation(fields: [serviceId], references: [id])
+  modifierGroups MenuModifierGroup[]
+  orderItems     OrderItem[]
+
+  @@index([organizationId, categoryId])
+  @@index([organizationId, isActive, isAvailable])
+}
+
+model MenuModifierGroup {
+  id         String @id @default(cuid())
+  menuItemId String
+
+  name      String // "Término de la carne", "Extras", "Tamaño"
+  required  Boolean @default(false)
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1) // 1 = single select, N = multi select
+  sortOrder Int     @default(0)
+
+  menuItem  MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  modifiers MenuModifier[]
+
+  @@index([menuItemId])
+}
+
+model MenuModifier {
+  id      String @id @default(cuid())
+  groupId String
+
+  name        String
+  price       Decimal @default(0) @db.Decimal(10, 2) // Extra price
+  isDefault   Boolean @default(false)
+  isAvailable Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  group MenuModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+// --- MESAS ---
+
+model Table {
+  id             String @id @default(cuid())
+  organizationId String
+
+  number   Int
+  name     String? // "Terraza 1", "VIP", "Barra"
+  section  String? // "Terraza", "Interior", "Segundo piso"
+  capacity Int     @default(4)
+  shape    String  @default("square") // square, round, rectangle
+  posX     Int     @default(0) // Para el plano visual
+  posY     Int     @default(0)
+
+  status   TableStatus @default(AVAILABLE)
+  qrCode   String? // QR code URL/data
+  isActive Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+}
+
+enum TableStatus {
+  AVAILABLE // Libre
+  OCCUPIED // Ocupada
+  RESERVED // Reservada
+  CLEANING // Limpiándose
+  BLOCKED // Bloqueada (mantenimiento)
+}
+
+// --- PEDIDOS ---
+
+model Order {
+  id             String @id @default(cuid())
+  organizationId String
+
+  number Int // Número correlativo del día
+  type   OrderType   @default(DINE_IN)
+  status OrderStatus @default(RECEIVED)
+  source OrderSource @default(POS)
+
+  // Cliente (opcional)
+  patientId     String?
+  customerName  String?
+  customerPhone String?
+
+  // Mesa (para dine-in)
+  tableId String?
+  guests  Int?
+
+  // Delivery
+  deliveryAddress String?
+  deliveryNotes   String?
+  estimatedTime   Int? // Minutos estimados
+
+  // Totales
+  subtotal Decimal @db.Decimal(10, 2)
+  tax      Decimal @default(0) @db.Decimal(10, 2)
+  discount Decimal @default(0) @db.Decimal(10, 2)
+  tip      Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+
+  // Pago
+  paymentMethod PaymentMethod?
+  paymentStatus PaymentStatus  @default(PENDING)
+  paidAt        DateTime?
+
+  // Notas
+  notes        String?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+  table        Table?       @relation(fields: [tableId], references: [id])
+  items        OrderItem[]
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([organizationId, type, status])
+  @@index([tableId])
+}
+
+enum OrderType {
+  DINE_IN // En mesa
+  TAKEAWAY // Para llevar
+  DELIVERY // Delivery
+  QR_ORDER // Pedido desde QR
+}
+
+enum OrderStatus {
+  RECEIVED // Recibido
+  CONFIRMED // Confirmado
+  PREPARING // En cocina
+  READY // Listo para servir/retirar
+  DELIVERED // Entregado/servido
+  COMPLETED // Finalizado y pagado
+  CANCELLED // Cancelado
+}
+
+enum OrderSource {
+  POS // Punto de venta (garzón/cajero)
+  QR // QR de mesa
+  WHATSAPP // Pedido por WhatsApp
+  WEB // Página web pública
+  PHONE // Llamada telefónica
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  menuItemId String?
+
+  name      String
+  quantity  Int     @default(1)
+  unitPrice Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+  notes     String? // "Sin cebolla", "Extra picante"
+  modifiers Json? // [{ name: "Término medio", price: 0 }]
+
+  status OrderItemStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+}
+
+enum OrderItemStatus {
+  PENDING // Esperando
+  PREPARING // Preparando
+  READY // Listo
+  SERVED // Servido
+  CANCELLED // Cancelado
 }
 
 // ==================== NOTIFICACIONES Y AUDITORÍA ====================

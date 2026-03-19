@@ -7,6 +7,9 @@ import { campaignRouter } from "./campaign";
 import { organizationRouter } from "./organization";
 import { documentRouter } from "./document";
 import { authRouter } from "./auth";
+import { menuRouter } from "./menu";
+import { tableRouter } from "./table";
+import { orderRouter } from "./order";
 
 export const appRouter = router({
   auth: authRouter,
@@ -17,6 +20,9 @@ export const appRouter = router({
   invoice: invoiceRouter,
   campaign: campaignRouter,
   document: documentRouter,
+  menu: menuRouter,
+  table: tableRouter,
+  order: orderRouter,
 });
 
 export type AppRouter = typeof appRouter;

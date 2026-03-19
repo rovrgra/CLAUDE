@@ -4,18 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, MessageSquare, Calendar,
-  FileText, Megaphone, FolderOpen, Settings, LogOut, UtensilsCrossed,
+  ShoppingBag, Megaphone, BookOpen, Settings, LogOut, UtensilsCrossed,
+  ChefHat, Grid3X3, ClipboardList,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Pedidos", href: "/orders", icon: ShoppingBag },
+  { name: "Cocina", href: "/kitchen", icon: ChefHat },
+  { name: "Mesas", href: "/tables", icon: Grid3X3 },
+  { name: "Menú", href: "/menu-admin", icon: ClipboardList },
   { name: "Clientes", href: "/patients", icon: Users },
   { name: "Conversaciones", href: "/conversations", icon: MessageSquare },
   { name: "Reservas", href: "/appointments", icon: Calendar },
-  { name: "Pedidos", href: "/invoices", icon: FileText },
   { name: "Campañas", href: "/campaigns", icon: Megaphone },
-  { name: "Carta / Menú", href: "/documents", icon: FolderOpen },
+  { name: "Carta / Docs", href: "/documents", icon: BookOpen },
   { name: "Configuración", href: "/settings", icon: Settings },
 ];
 
