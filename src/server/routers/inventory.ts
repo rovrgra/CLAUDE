@@ -178,8 +178,8 @@ export const inventoryRouter = router({
   createCategory: orgProcedure
     .input(z.object({
       organizationId: z.string(),
-      name: z.string().min(1),
-      description: z.string().optional(),
+      name: z.string().min(1).max(200),
+      description: z.string().max(5000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.inventoryCategory.create({

@@ -15,17 +15,17 @@ export const organizationRouter = router({
     .input(
       z.object({
         organizationId: z.string(),
-        name: z.string().optional(),
-        timezone: z.string().optional(),
-        businessType: z.string().optional(),
-        businessHours: z.any().optional(),
-        phone: z.string().optional(),
+        name: z.string().max(200).optional(),
+        timezone: z.string().max(200).optional(),
+        businessType: z.string().max(200).optional(),
+        businessHours: z.record(z.string(), z.object({ start: z.string(), end: z.string() })).optional(),
+        phone: z.string().max(200).optional(),
         email: z.string().email().optional(),
-        website: z.string().optional(),
-        address: z.string().optional(),
-        aiAgentName: z.string().optional(),
-        aiAgentPersonality: z.string().optional(),
-        aiAgentInstructions: z.string().optional(),
+        website: z.string().max(200).optional(),
+        address: z.string().max(5000).optional(),
+        aiAgentName: z.string().max(200).optional(),
+        aiAgentPersonality: z.string().max(5000).optional(),
+        aiAgentInstructions: z.string().max(5000).optional(),
         aiAutoReply: z.boolean().optional(),
       })
     )

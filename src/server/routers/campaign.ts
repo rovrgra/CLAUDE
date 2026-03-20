@@ -24,12 +24,12 @@ export const campaignRouter = router({
     .input(
       z.object({
         organizationId: z.string(),
-        name: z.string().min(1),
+        name: z.string().min(1).max(200),
         type: z.enum(["BROADCAST", "REACTIVATION", "REMINDER", "FOLLOW_UP", "PROMOTIONAL"]),
         channel: z.enum(["WHATSAPP", "EMAIL", "SMS"]).default("WHATSAPP"),
-        content: z.string().optional(),
+        content: z.string().max(5000).optional(),
         templateId: z.string().optional(),
-        audienceFilter: z.any().optional(),
+        audienceFilter: z.record(z.string(), z.any()).optional(),
         scheduledAt: z.string().datetime().optional(),
       })
     )
@@ -58,13 +58,13 @@ export const campaignRouter = router({
     .input(
       z.object({
         organizationId: z.string(),
-        name: z.string().min(1),
-        body: z.string().min(1),
+        name: z.string().min(1).max(200),
+        body: z.string().min(1).max(5000),
         channel: z.enum(["WHATSAPP", "EMAIL", "SMS"]).default("WHATSAPP"),
-        headerType: z.string().optional(),
-        headerContent: z.string().optional(),
-        footer: z.string().optional(),
-        buttons: z.any().optional(),
+        headerType: z.string().max(200).optional(),
+        headerContent: z.string().max(5000).optional(),
+        footer: z.string().max(5000).optional(),
+        buttons: z.array(z.object({ type: z.string(), title: z.string(), url: z.string().optional() })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -88,15 +88,15 @@ export const campaignRouter = router({
     .input(
       z.object({
         organizationId: z.string(),
-        name: z.string().min(1),
-        description: z.string().optional(),
+        name: z.string().min(1).max(200),
+        description: z.string().max(5000).optional(),
         trigger: z.enum([
           "NEW_PATIENT", "APPOINTMENT_BOOKED", "APPOINTMENT_COMPLETED",
           "APPOINTMENT_NO_SHOW", "APPOINTMENT_CANCELLED", "PAYMENT_RECEIVED",
           "INVOICE_OVERDUE", "PATIENT_INACTIVE", "MESSAGE_RECEIVED", "CUSTOM_DATE",
         ]),
-        triggerConfig: z.record(z.any()),
-        actions: z.array(z.any()),
+        triggerConfig: z.record(z.string(), z.any()),
+        actions: z.array(z.record(z.string(), z.any())),
       })
     )
     .mutation(async ({ ctx, input }) => {
