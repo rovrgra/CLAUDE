@@ -33,8 +33,9 @@ model Organization {
   aiWorkingHours      Json? // { mon: { start: "09:00", end: "18:00" }, ... }
 
   // Configuración de negocio
-  businessType  String  @default("dental_clinic")
+  businessType  String  @default("restaurant")
   businessHours Json?
+  taxRate       Decimal @default(0.19) @db.Decimal(5, 4) // IVA: 0.19 Chile, 0.16 México
   address       String?
   phone         String?
   email         String?
@@ -145,7 +146,7 @@ enum MemberRole {
   VIEWER
 }
 
-// ==================== CRM / PACIENTES ====================
+// ==================== CRM / CLIENTES ====================
 
 model Patient {
   id             String @id @default(cuid())
@@ -162,9 +163,9 @@ model Patient {
   gender         String?
   avatar         String?
 
-  // Datos médicos (dental)
-  medicalNotes    String?   @db.Text
-  allergies       String?
+  // Datos del cliente
+  notes              String?   @db.Text // Preferencias, alergias alimentarias, notas del cliente
+  dietaryRestrictions String?
   medications     String?
   lastVisit       DateTime?
   nextAppointment DateTime?

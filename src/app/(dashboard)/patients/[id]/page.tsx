@@ -72,17 +72,17 @@ export default function PatientDetailPage() {
             </dl>
           </div>
 
-          {/* Notas médicas */}
+          {/* Notas del cliente */}
           <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h3 className="text-lg font-semibold text-gray-900">Información médica</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Información del cliente</h3>
             <dl className="mt-4 space-y-3">
               <div>
-                <dt className="text-sm text-gray-500">Notas médicas</dt>
-                <dd className="text-sm">{patient.medicalNotes || "Sin notas"}</dd>
+                <dt className="text-sm text-gray-500">Notas</dt>
+                <dd className="text-sm">{patient.notes || "Sin notas"}</dd>
               </div>
               <div>
-                <dt className="text-sm text-gray-500">Alergias</dt>
-                <dd className="text-sm">{patient.allergies || "Ninguna registrada"}</dd>
+                <dt className="text-sm text-gray-500">Restricciones alimentarias</dt>
+                <dd className="text-sm">{patient.dietaryRestrictions || "Ninguna registrada"}</dd>
               </div>
               <div>
                 <dt className="text-sm text-gray-500">Medicamentos</dt>

@@ -1,14 +1,15 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, orgProcedure, publicProcedure } from "@/server/trpc";
 
 const orderItemInput = z.object({
   menuItemId: z.string().optional(),
-  name: z.string(),
+  name: z.string().min(1).max(200),
   quantity: z.number().min(1),
-  unitPrice: z.number(),
-  total: z.number(),
-  notes: z.string().optional(),
-  modifiers: z.any().optional(),
+  unitPrice: z.number().min(0),
+  total: z.number().min(0),
+  notes: z.string().max(5000).optional(),
+  modifiers: z.array(z.object({ name: z.string(), price: z.number() })).optional(),
 });
 
 export const orderRouter = router({
@@ -82,52 +83,61 @@ export const orderRouter = router({
       type: z.enum(["DINE_IN", "TAKEAWAY", "DELIVERY", "QR_ORDER"]),
       tableId: z.string().optional(),
       patientId: z.string().optional(),
-      customerName: z.string().optional(),
-      customerPhone: z.string().optional(),
-      guests: z.number().optional(),
-      deliveryAddress: z.string().optional(),
-      deliveryNotes: z.string().optional(),
-      notes: z.string().optional(),
+      customerName: z.string().max(200).optional(),
+      customerPhone: z.string().max(200).optional(),
+      guests: z.number().min(0).optional(),
+      deliveryAddress: z.string().max(5000).optional(),
+      deliveryNotes: z.string().max(5000).optional(),
+      notes: z.string().max(5000).optional(),
       items: z.array(orderItemInput).min(1),
     }))
     .mutation(async ({ ctx, input }) => {
       const { organizationId: _orgId, items, ...orderData } = input;
       void _orgId;
 
-      // Get next order number for today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const lastOrder = await ctx.prisma.order.findFirst({
-        where: { organizationId: ctx.organizationId, createdAt: { gte: today } },
-        orderBy: { number: "desc" },
+      const org = await ctx.prisma.organization.findUniqueOrThrow({
+        where: { id: ctx.organizationId },
       });
-      const number = (lastOrder?.number ?? 0) + 1;
+      const taxRate = Number(org.taxRate);
 
-      const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-      const tax = Math.round(subtotal * 0.19); // IVA Chile
-      const total = subtotal + tax;
-
-      const order = await ctx.prisma.order.create({
-        data: {
-          organizationId: ctx.organizationId,
-          number,
-          ...orderData,
-          source: "POS",
-          subtotal,
-          tax,
-          total,
-          items: { createMany: { data: items } },
-        },
-        include: { items: true, table: true },
-      });
-
-      // Update table status if dine-in
-      if (input.tableId) {
-        await ctx.prisma.table.update({
-          where: { id: input.tableId },
-          data: { status: "OCCUPIED" },
+      const order = await ctx.prisma.$transaction(async (tx) => {
+        // Get next order number for today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastOrder = await tx.order.findFirst({
+          where: { organizationId: ctx.organizationId, createdAt: { gte: today } },
+          orderBy: { number: "desc" },
         });
-      }
+        const number = (lastOrder?.number ?? 0) + 1;
+
+        const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+        const tax = Math.round(subtotal * taxRate);
+        const total = subtotal + tax;
+
+        const created = await tx.order.create({
+          data: {
+            organizationId: ctx.organizationId,
+            number,
+            ...orderData,
+            source: "POS",
+            subtotal,
+            tax,
+            total,
+            items: { createMany: { data: items } },
+          },
+          include: { items: true, table: true },
+        });
+
+        // Update table status if dine-in
+        if (input.tableId) {
+          await tx.table.update({
+            where: { id: input.tableId },
+            data: { status: "OCCUPIED" },
+          });
+        }
+
+        return created;
+      }, { isolationLevel: "Serializable" });
 
       return order;
     }),
@@ -137,17 +147,18 @@ export const orderRouter = router({
     .input(z.object({
       slug: z.string(),
       tableNumber: z.number().optional(),
-      customerName: z.string(),
-      customerPhone: z.string().optional(),
+      customerName: z.string().min(1).max(200),
+      customerPhone: z.string().max(200).optional(),
       type: z.enum(["QR_ORDER", "TAKEAWAY", "DELIVERY"]).default("QR_ORDER"),
-      deliveryAddress: z.string().optional(),
-      notes: z.string().optional(),
+      deliveryAddress: z.string().max(5000).optional(),
+      notes: z.string().max(5000).optional(),
       items: z.array(orderItemInput).min(1),
     }))
     .mutation(async ({ ctx, input }) => {
       const org = await ctx.prisma.organization.findUniqueOrThrow({
         where: { slug: input.slug },
       });
+      const taxRate = Number(org.taxRate);
 
       // Find table by number if provided
       let tableId: string | undefined;
@@ -158,51 +169,55 @@ export const orderRouter = router({
         tableId = table?.id;
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const lastOrder = await ctx.prisma.order.findFirst({
-        where: { organizationId: org.id, createdAt: { gte: today } },
-        orderBy: { number: "desc" },
-      });
-      const number = (lastOrder?.number ?? 0) + 1;
+      const order = await ctx.prisma.$transaction(async (tx) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const lastOrder = await tx.order.findFirst({
+          where: { organizationId: org.id, createdAt: { gte: today } },
+          orderBy: { number: "desc" },
+        });
+        const number = (lastOrder?.number ?? 0) + 1;
 
-      const subtotal = input.items.reduce((sum, item) => sum + item.total, 0);
-      const tax = Math.round(subtotal * 0.19);
-      const total = subtotal + tax;
+        const subtotal = input.items.reduce((sum, item) => sum + item.total, 0);
+        const tax = Math.round(subtotal * taxRate);
+        const total = subtotal + tax;
 
-      const order = await ctx.prisma.order.create({
-        data: {
-          organizationId: org.id,
-          number,
-          type: input.type,
-          source: input.tableNumber ? "QR" : "WEB",
-          tableId,
-          customerName: input.customerName,
-          customerPhone: input.customerPhone,
-          deliveryAddress: input.deliveryAddress,
-          notes: input.notes,
-          subtotal,
-          tax,
-          total,
-          items: { createMany: { data: input.items } },
-        },
-        include: { items: true },
-      });
+        const created = await tx.order.create({
+          data: {
+            organizationId: org.id,
+            number,
+            type: input.type,
+            source: input.tableNumber ? "QR" : "WEB",
+            tableId,
+            customerName: input.customerName,
+            customerPhone: input.customerPhone,
+            deliveryAddress: input.deliveryAddress,
+            notes: input.notes,
+            subtotal,
+            tax,
+            total,
+            items: { createMany: { data: input.items } },
+          },
+          include: { items: true },
+        });
 
-      // Notify restaurant
-      await ctx.prisma.notification.create({
-        data: {
-          organizationId: org.id,
-          type: "new_order",
-          title: `Nuevo pedido #${number}`,
-          body: `${input.customerName} - ${input.items.length} items - $${total.toLocaleString("es-CL")}`,
-          data: { orderId: order.id },
-        },
-      });
+        // Notify restaurant
+        await tx.notification.create({
+          data: {
+            organizationId: org.id,
+            type: "new_order",
+            title: `Nuevo pedido #${number}`,
+            body: `${input.customerName} - ${input.items.length} items - $${total.toLocaleString("es-CL")}`,
+            data: { orderId: created.id },
+          },
+        });
 
-      if (tableId) {
-        await ctx.prisma.table.update({ where: { id: tableId }, data: { status: "OCCUPIED" } });
-      }
+        if (tableId) {
+          await tx.table.update({ where: { id: tableId }, data: { status: "OCCUPIED" } });
+        }
+
+        return created;
+      }, { isolationLevel: "Serializable" });
 
       return order;
     }),
@@ -212,11 +227,11 @@ export const orderRouter = router({
     .input(z.object({
       organizationId: z.string(), id: z.string(),
       status: z.enum(["RECEIVED", "CONFIRMED", "PREPARING", "READY", "DELIVERED", "COMPLETED", "CANCELLED"]),
-      cancelReason: z.string().optional(),
+      cancelReason: z.string().max(5000).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const order = await ctx.prisma.order.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: {
           status: input.status,
           cancelReason: input.cancelReason,
@@ -243,6 +258,13 @@ export const orderRouter = router({
       status: z.enum(["PENDING", "PREPARING", "READY", "SERVED", "CANCELLED"]),
     }))
     .mutation(async ({ ctx, input }) => {
+      const item = await ctx.prisma.orderItem.findUniqueOrThrow({
+        where: { id: input.id },
+        include: { order: { select: { organizationId: true } } },
+      });
+      if (item.order.organizationId !== ctx.organizationId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+      }
       return ctx.prisma.orderItem.update({
         where: { id: input.id },
         data: { status: input.status },

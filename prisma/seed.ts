@@ -116,7 +116,7 @@ async function main() {
         organizationId: org.id, firstName: "María", lastName: "González",
         email: "maria@email.com", phone: "+56912345678",
         source: "whatsapp", status: "ACTIVE", score: 85,
-        medicalNotes: "Prefiere mesa en terraza. Alérgica al maní.",
+        notes: "Prefiere mesa en terraza. Alérgica al maní.",
       },
     }),
     prisma.patient.create({
@@ -124,7 +124,7 @@ async function main() {
         organizationId: org.id, firstName: "Juan", lastName: "Pérez",
         email: "juan@email.com", phone: "+56987654321",
         source: "whatsapp", status: "ACTIVE", score: 60,
-        medicalNotes: "Cliente frecuente de delivery. Pide parrillada los viernes.",
+        notes: "Cliente frecuente de delivery. Pide parrillada los viernes.",
       },
     }),
     prisma.patient.create({
@@ -138,7 +138,7 @@ async function main() {
       data: {
         organizationId: org.id, firstName: "Pedro", lastName: "Muñoz",
         phone: "+56933334444", source: "walk-in", status: "ACTIVE", score: 70,
-        medicalNotes: "Viene con equipo de trabajo (8-10 personas). Reserva los jueves.",
+        notes: "Viene con equipo de trabajo (8-10 personas). Reserva los jueves.",
       },
     }),
     prisma.patient.create({

@@ -80,7 +80,7 @@ export const organizationRouter = router({
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.notification.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: { isRead: true },
       });
     }),

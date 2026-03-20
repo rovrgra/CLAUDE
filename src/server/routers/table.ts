@@ -42,7 +42,7 @@ export const tableRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { organizationId: _orgId, id, ...data } = input;
       void _orgId;
-      return ctx.prisma.table.update({ where: { id }, data });
+      return ctx.prisma.table.update({ where: { id, organizationId: ctx.organizationId }, data });
     }),
 
   updateStatus: orgProcedure
@@ -51,12 +51,12 @@ export const tableRouter = router({
       status: z.enum(["AVAILABLE", "OCCUPIED", "RESERVED", "CLEANING", "BLOCKED"]),
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.table.update({ where: { id: input.id }, data: { status: input.status } });
+      return ctx.prisma.table.update({ where: { id: input.id, organizationId: ctx.organizationId }, data: { status: input.status } });
     }),
 
   delete: orgProcedure
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.table.update({ where: { id: input.id }, data: { isActive: false } });
+      return ctx.prisma.table.update({ where: { id: input.id, organizationId: ctx.organizationId }, data: { isActive: false } });
     }),
 });

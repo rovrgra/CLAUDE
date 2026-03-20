@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, orgProcedure } from "@/server/trpc";
 
 const staffRoles = z.enum([
@@ -90,7 +91,7 @@ export const staffRouter = router({
       void _orgId;
 
       return ctx.prisma.staff.update({
-        where: { id },
+        where: { id, organizationId: ctx.organizationId },
         data,
       });
     }),
@@ -103,7 +104,7 @@ export const staffRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.staff.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: {
           isActive: false,
           terminatedAt: new Date(),
@@ -123,6 +124,13 @@ export const staffRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const staff = await ctx.prisma.staff.findUniqueOrThrow({
+        where: { id: input.staffId },
+        select: { organizationId: true },
+      });
+      if (staff.organizationId !== ctx.organizationId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+      }
       return ctx.prisma.shift.create({
         data: {
           staffId: input.staffId,

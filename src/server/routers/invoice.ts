@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, orgProcedure } from "@/server/trpc";
 
 export const invoiceRouter = router({
@@ -110,7 +111,7 @@ export const invoiceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const invoice = await ctx.prisma.invoice.findUniqueOrThrow({
-        where: { id: input.invoiceId },
+        where: { id: input.invoiceId, organizationId: ctx.organizationId },
         include: { payments: true },
       });
 

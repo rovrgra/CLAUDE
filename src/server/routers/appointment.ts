@@ -90,7 +90,7 @@ export const appointmentRouter = router({
       const { organizationId: _, id, ...data } = input;
       void _;
       return ctx.prisma.appointment.update({
-        where: { id },
+        where: { id, organizationId: ctx.organizationId },
         data: {
           ...data,
           startTime: data.startTime ? new Date(data.startTime) : undefined,
@@ -103,7 +103,7 @@ export const appointmentRouter = router({
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.appointment.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: { status: "CANCELLED" },
       });
     }),

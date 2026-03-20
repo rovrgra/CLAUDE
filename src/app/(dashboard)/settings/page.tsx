@@ -16,7 +16,7 @@ export default function SettingsPage() {
   );
 
   const [form, setForm] = useState({
-    name: "", phone: "", email: "", address: "", businessType: "dental_clinic",
+    name: "", phone: "", email: "", address: "", businessType: "restaurant",
     aiAgentName: "Asistente", aiAgentPersonality: "profesional y amable",
     aiAgentInstructions: "", aiAutoReply: true,
   });

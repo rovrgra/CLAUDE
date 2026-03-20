@@ -66,8 +66,8 @@ export const patientRouter = router({
         dateOfBirth: z.string().datetime().optional(),
         gender: z.string().optional(),
         source: z.string().optional(),
-        medicalNotes: z.string().optional(),
-        allergies: z.string().optional(),
+        notes: z.string().optional(),
+        dietaryRestrictions: z.string().optional(),
         medications: z.string().optional(),
       })
     )
@@ -92,20 +92,20 @@ export const patientRouter = router({
         email: z.string().email().optional(),
         phone: z.string().optional(),
         status: z.enum(["LEAD", "ACTIVE", "INACTIVE", "ARCHIVED"]).optional(),
-        medicalNotes: z.string().optional(),
-        allergies: z.string().optional(),
+        notes: z.string().optional(),
+        dietaryRestrictions: z.string().optional(),
         medications: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       const { id, organizationId: _orgId, ...updateData } = input;
       void _orgId;
-      return ctx.prisma.patient.update({ where: { id }, data: updateData });
+      return ctx.prisma.patient.update({ where: { id, organizationId: ctx.organizationId }, data: updateData });
     }),
 
   delete: orgProcedure
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.patient.delete({ where: { id: input.id } });
+      return ctx.prisma.patient.delete({ where: { id: input.id, organizationId: ctx.organizationId } });
     }),
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, orgProcedure } from "@/server/trpc";
 
 export const conversationRouter = router({
@@ -59,6 +60,10 @@ export const conversationRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      // Verify conversation belongs to this organization
+      const conversation = await ctx.prisma.conversation.findUniqueOrThrow({
+        where: { id: input.conversationId, organizationId: ctx.organizationId },
+      });
       const message = await ctx.prisma.message.create({
         data: {
           conversationId: input.conversationId,
@@ -72,7 +77,7 @@ export const conversationRouter = router({
       });
 
       await ctx.prisma.conversation.update({
-        where: { id: input.conversationId },
+        where: { id: input.conversationId, organizationId: ctx.organizationId },
         data: { lastMessageAt: new Date() },
       });
 
@@ -89,7 +94,7 @@ export const conversationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.conversation.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: {
           status: input.status,
           resolvedAt: input.status === "RESOLVED" ? new Date() : undefined,
@@ -107,7 +112,7 @@ export const conversationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.conversation.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: { assignedToId: input.memberId, aiHandedOff: input.memberId !== null },
       });
     }),
@@ -122,7 +127,7 @@ export const conversationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.conversation.update({
-        where: { id: input.id },
+        where: { id: input.id, organizationId: ctx.organizationId },
         data: { aiEnabled: input.enabled },
       });
     }),

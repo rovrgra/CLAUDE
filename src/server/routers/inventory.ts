@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, orgProcedure } from "@/server/trpc";
 
 export const inventoryRouter = router({
@@ -46,14 +47,14 @@ export const inventoryRouter = router({
     .input(z.object({
       organizationId: z.string(),
       categoryId: z.string().optional(),
-      name: z.string().min(1),
-      sku: z.string().optional(),
-      unit: z.string().default("unidad"),
-      currentStock: z.number().default(0),
-      minStock: z.number().default(0),
-      maxStock: z.number().optional(),
-      costPerUnit: z.number().default(0),
-      supplier: z.string().optional(),
+      name: z.string().min(1).max(200),
+      sku: z.string().max(200).optional(),
+      unit: z.string().max(200).default("unidad"),
+      currentStock: z.number().min(0).default(0),
+      minStock: z.number().min(0).default(0),
+      maxStock: z.number().min(0).optional(),
+      costPerUnit: z.number().min(0).default(0),
+      supplier: z.string().max(200).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { organizationId: _orgId, ...data } = input;
@@ -74,13 +75,13 @@ export const inventoryRouter = router({
       organizationId: z.string(),
       id: z.string(),
       categoryId: z.string().optional().nullable(),
-      name: z.string().min(1).optional(),
-      sku: z.string().optional().nullable(),
-      unit: z.string().optional(),
-      minStock: z.number().optional(),
-      maxStock: z.number().optional().nullable(),
-      costPerUnit: z.number().optional(),
-      supplier: z.string().optional().nullable(),
+      name: z.string().min(1).max(200).optional(),
+      sku: z.string().max(200).optional().nullable(),
+      unit: z.string().max(200).optional(),
+      minStock: z.number().min(0).optional(),
+      maxStock: z.number().min(0).optional().nullable(),
+      costPerUnit: z.number().min(0).optional(),
+      supplier: z.string().max(200).optional().nullable(),
       isActive: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -88,7 +89,7 @@ export const inventoryRouter = router({
       void _orgId;
 
       return ctx.prisma.inventoryItem.update({
-        where: { id },
+        where: { id, organizationId: ctx.organizationId },
         data,
         include: { category: true },
       });
@@ -100,8 +101,8 @@ export const inventoryRouter = router({
       organizationId: z.string(),
       inventoryItemId: z.string(),
       type: z.enum(["PURCHASE", "SALE", "ADJUSTMENT", "WASTE"]),
-      quantity: z.number(),
-      reason: z.string().optional(),
+      quantity: z.number().min(0),
+      reason: z.string().max(5000).optional(),
       orderId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -111,8 +112,21 @@ export const inventoryRouter = router({
       // Determine stock change: PURCHASE adds, others subtract
       const stockDelta = type === "PURCHASE" ? quantity : -quantity;
 
-      const [movement] = await ctx.prisma.$transaction([
-        ctx.prisma.stockMovement.create({
+      const movement = await ctx.prisma.$transaction(async (tx) => {
+        const item = await tx.inventoryItem.findUniqueOrThrow({
+          where: { id: inventoryItemId },
+        });
+
+        if (item.organizationId !== ctx.organizationId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+        }
+
+        const newStock = Number(item.currentStock) + stockDelta;
+        if (newStock < 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Stock insuficiente" });
+        }
+
+        const created = await tx.stockMovement.create({
           data: {
             inventoryItemId,
             organizationId: ctx.organizationId,
@@ -122,12 +136,15 @@ export const inventoryRouter = router({
             orderId,
             createdBy: ctx.userId,
           },
-        }),
-        ctx.prisma.inventoryItem.update({
+        });
+
+        await tx.inventoryItem.update({
           where: { id: inventoryItemId },
-          data: { currentStock: { increment: stockDelta } },
-        }),
-      ]);
+          data: { currentStock: newStock },
+        });
+
+        return created;
+      });
 
       return movement;
     }),
@@ -136,16 +153,14 @@ export const inventoryRouter = router({
   lowStock: orgProcedure
     .input(z.object({ organizationId: z.string() }))
     .query(async ({ ctx }) => {
-      return ctx.prisma.$queryRawUnsafe<any[]>(
-        `SELECT i.*, c.name as "categoryName"
-         FROM "InventoryItem" i
-         LEFT JOIN "InventoryCategory" c ON i."categoryId" = c.id
-         WHERE i."organizationId" = $1
-           AND i."isActive" = true
-           AND i."currentStock" <= i."minStock"
-         ORDER BY (i."currentStock" - i."minStock") ASC`,
-        ctx.organizationId,
-      );
+      return ctx.prisma.$queryRaw<any[]>`
+        SELECT i.*, c.name as "categoryName"
+        FROM "InventoryItem" i
+        LEFT JOIN "InventoryCategory" c ON i."categoryId" = c.id
+        WHERE i."organizationId" = ${ctx.organizationId}
+          AND i."isActive" = true
+          AND i."currentStock" <= i."minStock"
+        ORDER BY (i."currentStock" - i."minStock") ASC`;
     }),
 
   // List categories

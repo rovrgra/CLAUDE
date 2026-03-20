@@ -638,7 +638,7 @@ export async function processIncomingMessage(
         ? `${conversation.patient.firstName} ${conversation.patient.lastName}`
         : "Cliente",
       clientPhone: conversation.patient?.phone || conversation.channelId || "",
-      clientNotes: conversation.patient?.medicalNotes || "",
+      clientNotes: conversation.patient?.notes || "",
       recentMessages,
       menuItems: services.map((s) => ({
         name: s.name,

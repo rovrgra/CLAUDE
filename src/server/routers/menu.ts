@@ -34,13 +34,13 @@ export const menuRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { organizationId: _orgId, id, ...data } = input;
       void _orgId;
-      return ctx.prisma.menuCategory.update({ where: { id }, data });
+      return ctx.prisma.menuCategory.update({ where: { id, organizationId: ctx.organizationId }, data });
     }),
 
   deleteCategory: orgProcedure
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.menuCategory.delete({ where: { id: input.id } });
+      return ctx.prisma.menuCategory.delete({ where: { id: input.id, organizationId: ctx.organizationId } });
     }),
 
   // --- Menu Items ---
@@ -83,20 +83,20 @@ export const menuRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { organizationId: _orgId, id, ...data } = input;
       void _orgId;
-      return ctx.prisma.menuItem.update({ where: { id }, data });
+      return ctx.prisma.menuItem.update({ where: { id, organizationId: ctx.organizationId }, data });
     }),
 
   toggleAvailability: orgProcedure
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const item = await ctx.prisma.menuItem.findUniqueOrThrow({ where: { id: input.id } });
-      return ctx.prisma.menuItem.update({ where: { id: input.id }, data: { isAvailable: !item.isAvailable } });
+      const item = await ctx.prisma.menuItem.findUniqueOrThrow({ where: { id: input.id, organizationId: ctx.organizationId } });
+      return ctx.prisma.menuItem.update({ where: { id: input.id, organizationId: ctx.organizationId }, data: { isAvailable: !item.isAvailable } });
     }),
 
   deleteItem: orgProcedure
     .input(z.object({ organizationId: z.string(), id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.menuItem.delete({ where: { id: input.id } });
+      return ctx.prisma.menuItem.delete({ where: { id: input.id, organizationId: ctx.organizationId } });
     }),
 
   // --- Public menu (for QR ordering) ---
