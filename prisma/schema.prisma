@@ -61,6 +61,12 @@ model Organization {
   menuItems      MenuItem[]
   tables         Table[]
   orders         Order[]
+  inventoryCategories InventoryCategory[]
+  inventoryItems      InventoryItem[]
+  staff               Staff[]
+  shifts              Shift[]
+  loyaltyProgram      LoyaltyProgram?
+  branches            Branch[]
 
   @@index([slug])
 }
@@ -184,6 +190,7 @@ model Patient {
   customFieldValues CustomFieldValue[]
   documents         PatientDocument[]
   orders            Order[]
+  loyaltyPoints     LoyaltyPoints[]
 
   @@index([organizationId, phone])
   @@index([organizationId, email])
@@ -919,6 +926,277 @@ enum OrderItemStatus {
   READY // Listo
   SERVED // Servido
   CANCELLED // Cancelado
+}
+
+// ==================== INVENTARIO ====================
+
+model InventoryCategory {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        InventoryItem[]
+
+  @@unique([organizationId, name])
+}
+
+model InventoryItem {
+  id             String @id @default(cuid())
+  organizationId String
+  categoryId     String?
+
+  name        String
+  sku         String?
+  unit        String   @default("unidad") // unidad, kg, litro, porción
+  currentStock Decimal @default(0) @db.Decimal(10, 2)
+  minStock     Decimal @default(0) @db.Decimal(10, 2) // Alert threshold
+  maxStock     Decimal? @db.Decimal(10, 2)
+  costPerUnit  Decimal @default(0) @db.Decimal(10, 2)
+  supplier     String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     InventoryCategory? @relation(fields: [categoryId], references: [id])
+  movements    StockMovement[]
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, categoryId])
+}
+
+model StockMovement {
+  id              String @id @default(cuid())
+  inventoryItemId String
+  organizationId  String
+
+  type     StockMovementType
+  quantity Decimal @db.Decimal(10, 2)
+  reason   String?
+  orderId  String? // Link to order that caused the movement
+
+  createdAt DateTime @default(now())
+  createdBy String? // User ID
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryItemId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+enum StockMovementType {
+  PURCHASE    // Compra/ingreso
+  SALE        // Venta/consumo
+  ADJUSTMENT  // Ajuste manual
+  WASTE       // Merma
+  TRANSFER    // Transferencia
+}
+
+// ==================== PERSONAL ====================
+
+model Staff {
+  id             String @id @default(cuid())
+  organizationId String
+
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  rut       String? // Chile ID
+  avatar    String?
+
+  role     StaffRole @default(WAITER)
+  pin      String?   // 4-digit PIN for POS login
+  isActive Boolean   @default(true)
+
+  // Salary
+  salary       Decimal? @db.Decimal(10, 2)
+  salaryType   String?  @default("monthly") // monthly, hourly
+
+  hiredAt     DateTime @default(now())
+  terminatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shifts       Shift[]
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, role])
+}
+
+enum StaffRole {
+  MANAGER    // Administrador
+  CHEF       // Chef / Jefe de cocina
+  COOK       // Cocinero
+  WAITER     // Garzón/Mesero
+  BARTENDER  // Barman
+  CASHIER    // Cajero
+  HOST       // Anfitrión
+  DELIVERY   // Repartidor
+  CLEANER    // Aseo
+}
+
+model Shift {
+  id             String @id @default(cuid())
+  staffId        String
+  organizationId String
+
+  date      DateTime @db.Date
+  startTime DateTime
+  endTime   DateTime?
+  breakMinutes Int @default(0)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, date])
+  @@index([organizationId, date])
+}
+
+// ==================== FIDELIZACIÓN ====================
+
+model LoyaltyProgram {
+  id             String @id @default(cuid())
+  organizationId String @unique
+
+  name            String @default("Programa de Fidelización")
+  pointsPerCLP    Decimal @default(0.01) @db.Decimal(10, 4) // Points per CLP spent
+  pointsToRedeem  Int     @default(100) // Points needed per reward
+  rewardValue     Decimal @default(1000) @db.Decimal(10, 2) // CLP discount per redemption
+  isActive        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rewards      LoyaltyReward[]
+}
+
+model LoyaltyReward {
+  id               String @id @default(cuid())
+  loyaltyProgramId String
+
+  name        String // "Postre gratis", "10% descuento"
+  description String?
+  pointsCost  Int
+  type        RewardType @default(DISCOUNT)
+  value       Decimal @db.Decimal(10, 2) // Discount amount or percentage
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  program     LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id], onDelete: Cascade)
+  redemptions LoyaltyRedemption[]
+}
+
+model LoyaltyPoints {
+  id             String @id @default(cuid())
+  organizationId String
+  patientId      String
+
+  totalPoints     Int @default(0)
+  availablePoints Int @default(0)
+  lifetimePoints  Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, patientId])
+}
+
+model LoyaltyTransaction {
+  id             String @id @default(cuid())
+  organizationId String
+  patientId      String
+
+  type   LoyaltyTransactionType
+  points Int
+  orderId String?
+  description String?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, patientId, createdAt])
+}
+
+model LoyaltyRedemption {
+  id        String @id @default(cuid())
+  rewardId  String
+  patientId String
+  orderId   String?
+
+  pointsUsed Int
+  status     RedemptionStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  reward  LoyaltyReward @relation(fields: [rewardId], references: [id])
+
+  @@index([patientId, createdAt])
+}
+
+enum RewardType {
+  DISCOUNT    // Descuento fijo
+  PERCENTAGE  // Porcentaje
+  FREE_ITEM   // Item gratis
+}
+
+enum LoyaltyTransactionType {
+  EARN     // Puntos ganados
+  REDEEM   // Puntos canjeados
+  ADJUST   // Ajuste manual
+  EXPIRE   // Expiración
+}
+
+enum RedemptionStatus {
+  PENDING
+  APPLIED
+  CANCELLED
+}
+
+// ==================== MULTI-SUCURSAL ====================
+
+model Branch {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name    String // "Sucursal Providencia", "Sucursal Las Condes"
+  slug    String
+  address String?
+  phone   String?
+  email   String?
+
+  // Location
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(10, 8)
+
+  // Hours
+  businessHours Json?
+
+  isActive  Boolean @default(true)
+  isMain    Boolean @default(false) // Sucursal principal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, isActive])
 }
 
 // ==================== NOTIFICACIONES Y AUDITORÍA ====================

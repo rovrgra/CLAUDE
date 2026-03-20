@@ -1,152 +1,356 @@
 "use client";
 
-import Link from "next/link";
-import { Users, MessageSquare, Calendar, DollarSign, UserPlus, Clock } from "lucide-react";
+import { DollarSign, ShoppingCart, TrendingUp, TrendingDown, Activity, Utensils } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOrg } from "@/lib/org-context";
 
-function StatCard({ title, value, icon: Icon, color, href }: {
-  title: string; value: string | number; icon: any; color: string; href: string;
+function formatCLP(amount: number): string {
+  return "$" + Math.round(amount).toLocaleString("es-CL");
+}
+
+function formatTime(date: Date | string): string {
+  return new Date(date).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  RECEIVED: "Recibido",
+  CONFIRMED: "Confirmado",
+  PREPARING: "Preparando",
+  READY: "Listo",
+  DELIVERED: "Entregado",
+  COMPLETED: "Completado",
+  CANCELLED: "Cancelado",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  RECEIVED: "bg-blue-100 text-blue-700",
+  CONFIRMED: "bg-indigo-100 text-indigo-700",
+  PREPARING: "bg-yellow-100 text-yellow-700",
+  READY: "bg-green-100 text-green-700",
+  DELIVERED: "bg-emerald-100 text-emerald-700",
+  COMPLETED: "bg-gray-100 text-gray-600",
+  CANCELLED: "bg-red-100 text-red-700",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  DINE_IN: "En mesa",
+  TAKEAWAY: "Para llevar",
+  DELIVERY: "Delivery",
+  QR_ORDER: "QR",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  DINE_IN: "bg-primary-600",
+  TAKEAWAY: "bg-amber-500",
+  DELIVERY: "bg-blue-500",
+  QR_ORDER: "bg-purple-500",
+};
+
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  color,
+  change,
+  subtitle,
+}: {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+  color: string;
+  change?: number | null;
+  subtitle?: string;
 }) {
   return (
-    <Link href={href} className="rounded-xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-md">
+    <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900 truncate">{value}</p>
+          {change != null && change !== 0 && (
+            <div className={`mt-1 flex items-center gap-1 text-xs font-medium ${change > 0 ? "text-green-600" : "text-red-600"}`}>
+              {change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              <span>{change > 0 ? "+" : ""}{change}% vs ayer</span>
+            </div>
+          )}
+          {subtitle && <p className="mt-1 text-xs text-gray-400">{subtitle}</p>}
         </div>
         <div className={`rounded-lg p-3 ${color}`}>
           <Icon className="h-6 w-6 text-white" />
         </div>
       </div>
-    </Link>
+    </div>
+  );
+}
+
+function BarChart({
+  data,
+  labelKey,
+  valueKey,
+  formatValue,
+  color = "bg-primary-600",
+  height = 160,
+}: {
+  data: Record<string, unknown>[];
+  labelKey: string;
+  valueKey: string;
+  formatValue?: (v: number) => string;
+  color?: string;
+  height?: number;
+}) {
+  const maxVal = Math.max(...data.map((d) => Number(d[valueKey]) || 0), 1);
+
+  return (
+    <div className="flex items-end gap-1" style={{ height }}>
+      {data.map((d, i) => {
+        const val = Number(d[valueKey]) || 0;
+        const barH = Math.max((val / maxVal) * (height - 24), 2);
+        return (
+          <div key={i} className="flex flex-1 flex-col items-center gap-1" title={formatValue ? formatValue(val) : String(val)}>
+            <div className={`w-full rounded-t ${color} transition-all`} style={{ height: barH }} />
+            <span className="text-[10px] text-gray-500 leading-none truncate max-w-full">
+              {String(d[labelKey])}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
 export default function DashboardPage() {
   const { organizationId } = useOrg();
 
-  const { data: stats } = trpc.organization.stats.useQuery(
+  const { data: analytics, isLoading } = trpc.order.analytics.useQuery(
     { organizationId },
-    { enabled: !!organizationId }
+    { enabled: !!organizationId, refetchInterval: 30000 }
   );
 
-  const { data: activity } = trpc.organization.recentActivity.useQuery(
+  const { data: stats } = trpc.order.todayStats.useQuery(
     { organizationId },
-    { enabled: !!organizationId }
+    { enabled: !!organizationId, refetchInterval: 30000 }
   );
+
+  if (!organizationId) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500">
+        Selecciona una organizacion para ver el dashboard
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Cargando datos...</p>
+        </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 animate-pulse rounded-xl border border-gray-200 bg-gray-50" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const revenueByDay = analytics?.revenueByDay ?? [];
+  const ordersByHour = analytics?.ordersByHour ?? [];
+  const topItems = analytics?.topItems ?? [];
+  const orderTypeDist = analytics?.orderTypeDistribution ?? [];
+  const recentOrders = analytics?.recentOrders ?? [];
+
+  const dayLabels = revenueByDay.map((d) => {
+    const dt = new Date(d.date + "T12:00:00");
+    return {
+      ...d,
+      label: dt.toLocaleDateString("es-CL", { weekday: "short" }),
+    };
+  });
+
+  const hourLabels = ordersByHour.map((h) => ({
+    ...h,
+    label: String(h.hour).padStart(2, "0"),
+  }));
+
+  const maxItemQty = Math.max(...topItems.map((t) => t.quantity), 1);
+  const totalTypeDist = orderTypeDist.reduce((s, d) => s + d.count, 0) || 1;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600">Resumen de tu restaurante</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Clientes totales" value={stats?.totalPatients ?? 0} icon={Users} color="bg-blue-500" href="/patients" />
-        <StatCard title="Chats abiertos" value={stats?.openConversations ?? 0} icon={MessageSquare} color="bg-green-500" href="/conversations" />
-        <StatCard title="Reservas próximas" value={stats?.upcomingAppointments ?? 0} icon={Calendar} color="bg-purple-500" href="/appointments" />
-        <StatCard title="Ingresos totales" value={`$${Number(stats?.totalRevenue ?? 0).toLocaleString("es-CL")}`} icon={DollarSign} color="bg-yellow-500" href="/invoices" />
+      {/* Row 1: Stat cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Ventas hoy"
+          value={formatCLP(analytics?.todayRevenue ?? Number(stats?.todayRevenue ?? 0))}
+          icon={DollarSign}
+          color="bg-green-500"
+          change={analytics?.todayRevenueChange}
+        />
+        <StatCard
+          title="Pedidos hoy"
+          value={String(analytics?.todayOrders ?? stats?.todayOrders ?? 0)}
+          icon={ShoppingCart}
+          color="bg-blue-500"
+        />
+        <StatCard
+          title="Pedidos activos"
+          value={String(analytics?.activeOrders ?? stats?.activeOrders ?? 0)}
+          icon={Activity}
+          color="bg-amber-500"
+          subtitle="Recibidos, confirmados, preparando, listos"
+        />
+        <StatCard
+          title="Ticket promedio"
+          value={formatCLP(analytics?.todayAvgOrderValue ?? 0)}
+          icon={Utensils}
+          color="bg-purple-500"
+          subtitle="Promedio hoy"
+        />
       </div>
 
+      {/* Row 2: Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Reservas próximas */}
+        {/* Revenue last 7 days */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Reservas próximas</h3>
-            <Link href="/appointments" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todas</Link>
+          <div className="mb-1 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Ventas ultimos 7 dias</h3>
+            {analytics?.weekRevenueChange != null && analytics.weekRevenueChange !== 0 && (
+              <span className={`flex items-center gap-1 text-sm font-medium ${analytics.weekRevenueChange > 0 ? "text-green-600" : "text-red-600"}`}>
+                {analytics.weekRevenueChange > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                {analytics.weekRevenueChange > 0 ? "+" : ""}{analytics.weekRevenueChange}% vs semana anterior
+              </span>
+            )}
           </div>
+          <p className="mb-4 text-sm text-gray-500">Total semana: {formatCLP(analytics?.thisWeekRevenue ?? 0)}</p>
+          <BarChart
+            data={dayLabels}
+            labelKey="label"
+            valueKey="revenue"
+            formatValue={formatCLP}
+            color="bg-primary-600"
+            height={180}
+          />
+        </div>
+
+        {/* Orders by hour */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h3 className="text-lg font-semibold text-gray-900">Pedidos por hora (hoy)</h3>
+          <p className="mb-4 text-sm text-gray-500">Analisis de horas peak</p>
+          <BarChart
+            data={hourLabels}
+            labelKey="label"
+            valueKey="count"
+            color="bg-blue-500"
+            height={180}
+          />
+        </div>
+      </div>
+
+      {/* Row 3: Top items + Order type distribution */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Top 5 items */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          <h3 className="text-lg font-semibold text-gray-900">Top 5 productos (semana)</h3>
           <div className="mt-4 space-y-3">
-            {!activity?.recentAppointments.length ? (
-              <p className="text-sm text-gray-500">No hay reservas próximas</p>
+            {topItems.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay datos esta semana</p>
             ) : (
-              activity.recentAppointments.map((apt) => (
-                <div key={apt.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100">
-                    <Clock className="h-5 w-5 text-purple-600" />
+              topItems.map((item, i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-gray-700 truncate flex-1 mr-2">{item.name}</span>
+                    <span className="text-sm text-gray-500 shrink-0">{item.quantity} uds &middot; {formatCLP(item.revenue)}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {apt.patient.firstName} {apt.patient.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {apt.title || apt.service?.name || "Reserva"} - {new Date(apt.startTime).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" })} {new Date(apt.startTime).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
+                  <div className="h-2 w-full rounded-full bg-gray-100">
+                    <div
+                      className="h-2 rounded-full bg-primary-600 transition-all"
+                      style={{ width: `${(item.quantity / maxItemQty) * 100}%` }}
+                    />
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
-                    apt.status === "CONFIRMED" ? "bg-green-100 text-green-700" :
-                    apt.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>
-                    {apt.status === "CONFIRMED" ? "Confirmada" : apt.status === "PENDING" ? "Pendiente" : apt.status}
-                  </span>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* Conversaciones recientes */}
+        {/* Order type distribution */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Chats recientes</h3>
-            <Link href="/conversations" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todos</Link>
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900">Tipos de pedido (semana)</h3>
           <div className="mt-4 space-y-3">
-            {!activity?.recentConversations.length ? (
-              <p className="text-sm text-gray-500">No hay conversaciones recientes</p>
+            {orderTypeDist.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay datos esta semana</p>
             ) : (
-              activity.recentConversations.map((conv) => (
-                <div key={conv.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100">
-                    <MessageSquare className="h-5 w-5 text-green-600" />
+              orderTypeDist.map((d, i) => {
+                const pct = Math.round((d.count / totalTypeDist) * 100);
+                return (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-3 w-3 rounded-full ${TYPE_COLORS[d.type] ?? "bg-gray-400"}`} />
+                        <span className="text-sm font-medium text-gray-700">{TYPE_LABELS[d.type] ?? d.type}</span>
+                      </div>
+                      <span className="text-sm text-gray-500">{d.count} ({pct}%)</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-gray-100">
+                      <div
+                        className={`h-2 rounded-full ${TYPE_COLORS[d.type] ?? "bg-gray-400"} transition-all`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {conv.patient ? `${conv.patient.firstName} ${conv.patient.lastName}` : "Desconocido"}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {conv.channel} - {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleDateString("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Sin mensajes"}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
-                    conv.status === "OPEN" ? "bg-green-100 text-green-700" :
-                    conv.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
-                    "bg-gray-100 text-gray-600"
-                  }`}>
-                    {conv.status === "OPEN" ? "Abierta" : conv.status === "PENDING" ? "Pendiente" : "Resuelta"}
-                  </span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
+      </div>
 
-        {/* Clientes recientes */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Clientes recientes</h3>
-            <Link href="/patients" className="text-sm font-medium text-primary-600 hover:text-primary-500">Ver todos</Link>
-          </div>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {!activity?.recentPatients.length ? (
-              <p className="text-sm text-gray-500">No hay clientes aún</p>
-            ) : (
-              activity.recentPatients.map((client) => (
-                <Link key={client.id} href={`/patients/${client.id}`}
-                  className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 hover:bg-gray-50">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                    <UserPlus className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{client.firstName} {client.lastName}</p>
-                    <p className="text-xs text-gray-500">{client.source === "whatsapp" ? "WhatsApp" : "Directo"}</p>
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
+      {/* Row 4: Recent orders */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6">
+        <h3 className="mb-4 text-lg font-semibold text-gray-900">Pedidos recientes</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-gray-500">
+                <th className="pb-3 font-medium">#</th>
+                <th className="pb-3 font-medium">Estado</th>
+                <th className="pb-3 font-medium">Tipo</th>
+                <th className="pb-3 font-medium">Cliente</th>
+                <th className="pb-3 font-medium text-right">Total</th>
+                <th className="pb-3 font-medium text-right">Hora</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-gray-500">No hay pedidos recientes</td>
+                </tr>
+              ) : (
+                recentOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="py-3 font-medium text-gray-900">#{order.number}</td>
+                    <td className="py-3">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-600"}`}>
+                        {STATUS_LABELS[order.status] ?? order.status}
+                      </span>
+                    </td>
+                    <td className="py-3 text-gray-600">{TYPE_LABELS[order.type] ?? order.type}</td>
+                    <td className="py-3 text-gray-600">{order.customerName ?? order.tableName ?? "-"}</td>
+                    <td className="py-3 text-right font-medium text-gray-900">{formatCLP(order.total)}</td>
+                    <td className="py-3 text-right text-gray-500">{formatTime(order.createdAt)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, MessageSquare, Calendar,
   ShoppingBag, Megaphone, BookOpen, Settings, LogOut, UtensilsCrossed,
-  ChefHat, Grid3X3, ClipboardList,
+  ChefHat, Grid3X3, ClipboardList, Package, UserCog, BarChart3,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -15,6 +15,9 @@ const navigation = [
   { name: "Cocina", href: "/kitchen", icon: ChefHat },
   { name: "Mesas", href: "/tables", icon: Grid3X3 },
   { name: "Menú", href: "/menu-admin", icon: ClipboardList },
+  { name: "Inventario", href: "/inventory", icon: Package },
+  { name: "Personal", href: "/staff", icon: UserCog },
+  { name: "Reportes", href: "/reports", icon: BarChart3 },
   { name: "Clientes", href: "/patients", icon: Users },
   { name: "Conversaciones", href: "/conversations", icon: MessageSquare },
   { name: "Reservas", href: "/appointments", icon: Calendar },
