@@ -7,7 +7,7 @@ export const organizationRouter = router({
     .query(async ({ ctx }) => {
       return ctx.prisma.organization.findUniqueOrThrow({
         where: { id: ctx.organizationId },
-        include: { _count: { select: { patients: true, conversations: true, appointments: true } } },
+        include: { _count: { select: { patients: true, appointments: true } } },
       });
     }),
 
@@ -23,10 +23,6 @@ export const organizationRouter = router({
         email: z.string().email().optional(),
         website: z.string().max(200).optional(),
         address: z.string().max(5000).optional(),
-        aiAgentName: z.string().max(200).optional(),
-        aiAgentPersonality: z.string().max(5000).optional(),
-        aiAgentInstructions: z.string().max(5000).optional(),
-        aiAutoReply: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -40,11 +36,8 @@ export const organizationRouter = router({
   stats: orgProcedure
     .input(z.object({ organizationId: z.string() }))
     .query(async ({ ctx }) => {
-      const [patients, conversations, appointments, invoices] = await Promise.all([
+      const [patients, appointments, invoices] = await Promise.all([
         ctx.prisma.patient.count({ where: { organizationId: ctx.organizationId } }),
-        ctx.prisma.conversation.count({
-          where: { organizationId: ctx.organizationId, status: "OPEN" },
-        }),
         ctx.prisma.appointment.count({
           where: {
             organizationId: ctx.organizationId,
@@ -60,7 +53,6 @@ export const organizationRouter = router({
 
       return {
         totalPatients: patients,
-        openConversations: conversations,
         upcomingAppointments: appointments,
         totalRevenue: invoices._sum.total ?? 0,
       };
@@ -88,17 +80,11 @@ export const organizationRouter = router({
   recentActivity: orgProcedure
     .input(z.object({ organizationId: z.string() }))
     .query(async ({ ctx }) => {
-      const [recentAppointments, recentConversations, recentPatients] = await Promise.all([
+      const [recentAppointments, recentPatients] = await Promise.all([
         ctx.prisma.appointment.findMany({
           where: { organizationId: ctx.organizationId },
           include: { patient: { select: { firstName: true, lastName: true } }, service: { select: { name: true } } },
           orderBy: { createdAt: "desc" },
-          take: 5,
-        }),
-        ctx.prisma.conversation.findMany({
-          where: { organizationId: ctx.organizationId },
-          include: { patient: { select: { firstName: true, lastName: true } } },
-          orderBy: { lastMessageAt: "desc" },
           take: 5,
         }),
         ctx.prisma.patient.findMany({
@@ -107,6 +93,6 @@ export const organizationRouter = router({
           take: 5,
         }),
       ]);
-      return { recentAppointments, recentConversations, recentPatients };
+      return { recentAppointments, recentPatients };
     }),
 });

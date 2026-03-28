@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bot, Building2, Globe, CreditCard, Key, Bell, Loader2, Check, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Building2, CreditCard, Key, Bell, Loader2, Check, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useOrg } from "@/lib/org-context";
 
@@ -17,8 +17,6 @@ export default function SettingsPage() {
 
   const [form, setForm] = useState({
     name: "", phone: "", email: "", address: "", businessType: "restaurant",
-    aiAgentName: "Asistente", aiAgentPersonality: "profesional y amable",
-    aiAgentInstructions: "", aiAutoReply: true,
   });
 
   useEffect(() => {
@@ -29,10 +27,6 @@ export default function SettingsPage() {
         email: org.email || "",
         address: org.address || "",
         businessType: org.businessType,
-        aiAgentName: org.aiAgentName,
-        aiAgentPersonality: org.aiAgentPersonality,
-        aiAgentInstructions: org.aiAgentInstructions || "",
-        aiAutoReply: org.aiAutoReply,
       });
     }
   }, [org]);
@@ -52,8 +46,6 @@ export default function SettingsPage() {
 
   const tabs = [
     { key: "general", label: "General", icon: Building2 },
-    { key: "ai", label: "Agente IA", icon: Bot },
-    { key: "channels", label: "Canales", icon: Globe },
     { key: "billing", label: "Facturación", icon: CreditCard },
     { key: "api", label: "API Keys", icon: Key },
     { key: "notifications", label: "Notificaciones", icon: Bell },
@@ -73,7 +65,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-gray-600">Administra tu restaurante y el bot de WhatsApp</p>
+        <p className="text-gray-600">Administra tu restaurante</p>
       </div>
 
       <div className="flex gap-6">
@@ -126,94 +118,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* AI Agent Tab */}
-          {activeTab === "ai" && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Configuración del Agente IA</h2>
-              <p className="text-sm text-gray-500">El bot usa Claude (Anthropic) para responder automáticamente a tus clientes por WhatsApp.</p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Nombre del agente</label>
-                  <input type="text" value={form.aiAgentName} onChange={(e) => setForm({ ...form, aiAgentName: e.target.value })} className={inputClass} />
-                  <p className="mt-1 text-xs text-gray-400">El nombre que usará el agente para presentarse</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Personalidad</label>
-                  <input type="text" value={form.aiAgentPersonality} onChange={(e) => setForm({ ...form, aiAgentPersonality: e.target.value })} className={inputClass} />
-                  <p className="mt-1 text-xs text-gray-400">Ej: profesional y amable, cercano y empático, formal</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Instrucciones personalizadas</label>
-                  <textarea rows={6} value={form.aiAgentInstructions} onChange={(e) => setForm({ ...form, aiAgentInstructions: e.target.value })}
-                    className={inputClass}
-                    placeholder="Ej: Siempre sugiere los platos del día. Ofrece hacer reserva cuando pregunten disponibilidad. No hagas descuentos sin autorización." />
-                </div>
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" id="autoReply" checked={form.aiAutoReply}
-                    onChange={(e) => setForm({ ...form, aiAutoReply: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600" />
-                  <label htmlFor="autoReply" className="text-sm text-gray-700">Habilitar respuestas automáticas por WhatsApp</label>
-                </div>
-              </div>
-              <SaveButton label="Guardar configuración IA" />
-            </div>
-          )}
-
-          {/* Channels Tab */}
-          {activeTab === "channels" && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Canales de comunicación</h2>
-
-              {/* WhatsApp */}
-              <div className="rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
-                      <span className="text-lg">📱</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">WhatsApp Business</p>
-                      <p className="text-sm text-gray-500">Recibe pedidos y reservas de clientes</p>
-                    </div>
-                  </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    org?.whatsappPhoneId ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-                  }`}>
-                    {org?.whatsappPhoneId ? "Conectado" : "No conectado"}
-                  </span>
-                </div>
-                {!org?.whatsappPhoneId && (
-                  <div className="mt-4 rounded-lg bg-gray-50 p-4">
-                    <h4 className="text-sm font-medium text-gray-900">Cómo conectar WhatsApp</h4>
-                    <ol className="mt-2 space-y-1 text-sm text-gray-600">
-                      <li>1. Crea una app en Meta for Developers</li>
-                      <li>2. Configura WhatsApp Business API</li>
-                      <li>3. Copia tu Phone Number ID y Access Token</li>
-                      <li>4. Configura el webhook URL: <code className="rounded bg-gray-200 px-1.5 py-0.5 text-xs">{typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/whatsapp</code></li>
-                      <li>5. Usa el token de verificación de tu archivo .env</li>
-                    </ol>
-                  </div>
-                )}
-              </div>
-
-              {/* Web Chat */}
-              <div className="rounded-lg border border-gray-200 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                      <span className="text-lg">💬</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Chat Web</p>
-                      <p className="text-sm text-gray-500">Widget de chat para tu sitio web</p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">Próximamente</span>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Billing Tab */}
           {activeTab === "billing" && (
             <div className="space-y-6">
@@ -227,9 +131,8 @@ export default function SettingsPage() {
                   <span className="text-sm text-gray-500">/ para siempre</span>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Hasta 100 pacientes</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> WhatsApp Business API</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Agente IA con Claude</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Hasta 100 clientes</li>
+                  <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Gestión de pedidos y mesas</li>
                   <li className="flex items-center gap-2"><Check className="h-4 w-4 text-green-500" /> Gestión de citas e inventario</li>
                 </ul>
               </div>
@@ -290,7 +193,6 @@ function ApiKeysTab({ organizationId }: { organizationId: string }) {
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const webhookUrl = typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/whatsapp` : "";
   const apiKeyPlaceholder = "dk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
   function handleCopy(text: string) {
@@ -301,7 +203,7 @@ function ApiKeysTab({ organizationId }: { organizationId: string }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-gray-900">API Keys y webhooks</h2>
+      <h2 className="text-lg font-semibold text-gray-900">API Keys</h2>
       <p className="text-sm text-gray-500">Claves de acceso para integraciones externas.</p>
 
       <div className="rounded-lg border border-gray-200 p-5">
@@ -311,18 +213,6 @@ function ApiKeysTab({ organizationId }: { organizationId: string }) {
           <button onClick={() => handleCopy(organizationId)}
             className="rounded-lg border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
             {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-900">Webhook URL</h3>
-        <p className="mt-1 text-xs text-gray-500">Configura esta URL en Meta for Developers para WhatsApp</p>
-        <div className="mt-2 flex items-center gap-2">
-          <code className="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm font-mono text-gray-800 truncate">{webhookUrl}</code>
-          <button onClick={() => handleCopy(webhookUrl)}
-            className="rounded-lg border px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
-            <Copy className="h-4 w-4" />
           </button>
         </div>
       </div>
@@ -353,11 +243,9 @@ function ApiKeysTab({ organizationId }: { organizationId: string }) {
 
 function NotificationsTab() {
   const [prefs, setPrefs] = useState({
-    newMessage: true,
     appointmentReminder: true,
     paymentReceived: true,
     newPatient: true,
-    aiHandoff: true,
     emailNotifs: false,
     browserNotifs: true,
   });
@@ -370,11 +258,9 @@ function NotificationsTab() {
       <div className="rounded-lg border border-gray-200 divide-y">
         <h3 className="px-5 py-3 text-sm font-semibold text-gray-900">Eventos</h3>
         {[
-          { key: "newMessage" as const, label: "Nuevo mensaje de paciente", desc: "Cuando un paciente envía un mensaje por WhatsApp" },
           { key: "appointmentReminder" as const, label: "Recordatorio de cita", desc: "Antes de una cita agendada" },
           { key: "paymentReceived" as const, label: "Pago recibido", desc: "Cuando se registra un pago de factura" },
-          { key: "newPatient" as const, label: "Nuevo paciente", desc: "Cuando un paciente se registra por primera vez" },
-          { key: "aiHandoff" as const, label: "Handoff de IA", desc: "Cuando el agente IA necesita intervención humana" },
+          { key: "newPatient" as const, label: "Nuevo cliente", desc: "Cuando un cliente se registra por primera vez" },
         ].map((item) => (
           <div key={item.key} className="flex items-center justify-between px-5 py-4">
             <div>

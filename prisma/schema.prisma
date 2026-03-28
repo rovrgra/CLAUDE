@@ -21,16 +21,7 @@ model Organization {
   planExpiresAt    DateTime?
   stripeCustomerId String?   @unique
   mercadoPagoId    String?   @unique
-  whatsappPhoneId  String? // WhatsApp Business Phone ID
-  whatsappToken    String? // Encrypted
   googleCalendarId String?
-
-  // Configuración del agente IA
-  aiAgentName         String  @default("Asistente")
-  aiAgentPersonality  String  @default("profesional y amable")
-  aiAgentInstructions String? @db.Text // Instrucciones personalizadas
-  aiAutoReply         Boolean @default(true)
-  aiWorkingHours      Json? // { mon: { start: "09:00", end: "18:00" }, ... }
 
   // Configuración de negocio
   businessType  String  @default("restaurant")
@@ -46,14 +37,12 @@ model Organization {
 
   members        Member[]
   patients       Patient[]
-  conversations  Conversation[]
   appointments   Appointment[]
   services       Service[]
   invoices       Invoice[]
   campaigns      Campaign[]
   automations    Automation[]
   documents      Document[]
-  templates      MessageTemplate[]
   tags           Tag[]
   customFields   CustomField[]
   notifications  Notification[]
@@ -133,8 +122,6 @@ model Member {
 
   user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  assignedConversations Conversation[] @relation("AssignedTo")
-  messages              Message[]
 
   @@unique([userId, organizationId])
 }
@@ -183,7 +170,6 @@ model Patient {
   updatedAt DateTime @updatedAt
 
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  conversations     Conversation[]
   appointments      Appointment[]
   invoices          Invoice[]
   payments          Payment[]
@@ -251,123 +237,6 @@ model CustomFieldValue {
   @@unique([patientId, customFieldId])
 }
 
-// ==================== CONVERSACIONES ====================
-
-model Conversation {
-  id             String  @id @default(cuid())
-  organizationId String
-  patientId      String?
-
-  channel   Channel            @default(WHATSAPP)
-  channelId String? // WhatsApp phone, email address, etc.
-  status    ConversationStatus @default(OPEN)
-  priority  Priority           @default(NORMAL)
-
-  // IA
-  aiEnabled   Boolean @default(true)
-  aiHandedOff Boolean @default(false) // IA delegó a humano
-  aiSummary   String? @db.Text
-  aiSentiment String? // positive, neutral, negative
-
-  assignedToId  String?
-  lastMessageAt DateTime?
-  resolvedAt    DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  patient      Patient?     @relation(fields: [patientId], references: [id])
-  assignedTo   Member?      @relation("AssignedTo", fields: [assignedToId], references: [id])
-  messages     Message[]
-
-  @@index([organizationId, status, lastMessageAt])
-  @@index([organizationId, channel])
-  @@index([patientId])
-}
-
-enum Channel {
-  WHATSAPP
-  EMAIL
-  SMS
-  WEB_CHAT
-  INSTAGRAM
-  FACEBOOK
-}
-
-enum ConversationStatus {
-  OPEN
-  PENDING
-  RESOLVED
-  ARCHIVED
-}
-
-enum Priority {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
-}
-
-model Message {
-  id             String @id @default(cuid())
-  conversationId String
-
-  direction MessageDirection
-  sender    MessageSender
-  senderId  String? // Member ID si es humano
-
-  // Contenido
-  type      MessageType @default(TEXT)
-  content   String?     @db.Text
-  mediaUrl  String?
-  mediaType String? // image/jpeg, audio/ogg, application/pdf, etc.
-
-  // WhatsApp específico
-  whatsappMsgId  String? @unique
-  whatsappStatus String? // sent, delivered, read, failed
-
-  // IA
-  aiGenerated  Boolean @default(false)
-  aiConfidence Float?
-  aiToolsUsed  Json? // Herramientas usadas por la IA
-
-  // Metadata
-  metadata Json?
-
-  createdAt DateTime @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  member       Member?      @relation(fields: [senderId], references: [id])
-
-  @@index([conversationId, createdAt])
-  @@index([whatsappMsgId])
-}
-
-enum MessageDirection {
-  INBOUND
-  OUTBOUND
-}
-
-enum MessageSender {
-  PATIENT
-  AGENT // Humano
-  AI // IA
-  SYSTEM // Notificaciones del sistema
-}
-
-enum MessageType {
-  TEXT
-  IMAGE
-  AUDIO
-  VIDEO
-  DOCUMENT
-  LOCATION
-  CONTACT
-  TEMPLATE
-  INTERACTIVE
-}
-
 // ==================== CITAS / CALENDARIO ====================
 
 model Service {
@@ -405,9 +274,6 @@ model Appointment {
 
   // Google Calendar
   googleEventId String?
-
-  // IA
-  bookedByAi Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -545,8 +411,6 @@ model Campaign {
   status CampaignStatus @default(DRAFT)
 
   // Contenido
-  channel    Channel @default(WHATSAPP)
-  templateId String?
   content    String? @db.Text
 
   // Audiencia
@@ -567,8 +431,7 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  template     MessageTemplate? @relation(fields: [templateId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
 }
@@ -587,35 +450,6 @@ enum CampaignStatus {
   RUNNING
   COMPLETED
   CANCELLED
-}
-
-model MessageTemplate {
-  id             String @id @default(cuid())
-  organizationId String
-
-  name     String
-  channel  Channel @default(WHATSAPP)
-  category String? // WhatsApp template category
-  language String  @default("es")
-
-  // Contenido
-  headerType    String? // text, image, document, video
-  headerContent String?
-  body          String  @db.Text
-  footer        String?
-  buttons       Json? // Botones interactivos
-
-  // WhatsApp
-  whatsappTemplateId String? // ID en Meta
-  whatsappStatus     String? // approved, pending, rejected
-
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  campaigns    Campaign[]
 }
 
 model Automation {
