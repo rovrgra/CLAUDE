@@ -1,0 +1,1073 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTENTICACIÓN Y TENANCY ====================
+
+model Organization {
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  logo             String?
+  timezone         String    @default("America/Santiago")
+  country          String    @default("CL") // CL, MX, CO, AR, PE, etc.
+  currency         String    @default("CLP")
+  plan             Plan      @default(FREE)
+  planExpiresAt    DateTime?
+  stripeCustomerId String?   @unique
+  mercadoPagoId    String?   @unique
+  googleCalendarId String?
+
+  // Configuración de negocio
+  businessType  String  @default("restaurant")
+  businessHours Json?
+  taxRate       Decimal @default(0.19) @db.Decimal(5, 4) // IVA: 0.19 Chile, 0.16 México
+  address       String?
+  phone         String?
+  email         String?
+  website       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members        Member[]
+  patients       Patient[]
+  appointments   Appointment[]
+  services       Service[]
+  invoices       Invoice[]
+  campaigns      Campaign[]
+  automations    Automation[]
+  documents      Document[]
+  tags           Tag[]
+  customFields   CustomField[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  tables         Table[]
+  orders         Order[]
+  inventoryCategories InventoryCategory[]
+  inventoryItems      InventoryItem[]
+  staff               Staff[]
+  shifts              Shift[]
+  loyaltyProgram      LoyaltyProgram?
+  branches            Branch[]
+
+  @@index([slug])
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String
+  avatar        String?
+  emailVerified DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  Member[]
+  accounts Account[] // OAuth accounts
+  sessions Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Member {
+  id             String     @id @default(cuid())
+  role           MemberRole @default(STAFF)
+  userId         String
+  organizationId String
+  isActive       Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  STAFF
+  VIEWER
+}
+
+// ==================== CRM / CLIENTES ====================
+
+model Patient {
+  id             String @id @default(cuid())
+  organizationId String
+
+  // Datos personales
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String? // Número principal (WhatsApp)
+  phoneSecondary String?
+  rut            String? // Chile: RUT, México: CURP/RFC
+  dateOfBirth    DateTime?
+  gender         String?
+  avatar         String?
+
+  // Datos del cliente
+  notes              String?   @db.Text // Preferencias, alergias alimentarias, notas del cliente
+  dietaryRestrictions String?
+  medications     String?
+  lastVisit       DateTime?
+  nextAppointment DateTime?
+
+  // Segmentación
+  source String? // whatsapp, website, referral, walk-in
+  status PatientStatus @default(ACTIVE)
+  score  Int           @default(0) // Lead scoring
+
+  // Financiero
+  balance       Decimal @default(0) @db.Decimal(10, 2)
+  lifetimeValue Decimal @default(0) @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments      Appointment[]
+  invoices          Invoice[]
+  payments          Payment[]
+  tags              PatientTag[]
+  customFieldValues CustomFieldValue[]
+  documents         PatientDocument[]
+  orders            Order[]
+  loyaltyPoints     LoyaltyPoints[]
+
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+  @@index([organizationId, status])
+}
+
+enum PatientStatus {
+  LEAD
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model Tag {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  color          String @default("#6366f1")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patients     PatientTag[]
+
+  @@unique([organizationId, name])
+}
+
+model PatientTag {
+  patientId String
+  tagId     String
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([patientId, tagId])
+}
+
+model CustomField {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  type           String // text, number, date, select, boolean
+  options        Json? // Para type=select
+  required       Boolean @default(false)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  values       CustomFieldValue[]
+}
+
+model CustomFieldValue {
+  id            String @id @default(cuid())
+  patientId     String
+  customFieldId String
+  value         String
+
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  customField CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, customFieldId])
+}
+
+// ==================== CITAS / CALENDARIO ====================
+
+model Service {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  duration       Int // En minutos
+  price          Decimal @db.Decimal(10, 2)
+  currency       String  @default("CLP")
+  color          String  @default("#6366f1")
+  isActive       Boolean @default(true)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  invoiceItems InvoiceItem[]
+  menuItems    MenuItem[]
+}
+
+model Appointment {
+  id             String  @id @default(cuid())
+  organizationId String
+  patientId      String
+  serviceId      String?
+
+  title     String
+  startTime DateTime
+  endTime   DateTime
+  status    AppointmentStatus @default(CONFIRMED)
+  notes     String?           @db.Text
+
+  // Recordatorios
+  reminder24hSent Boolean @default(false)
+  reminder1hSent  Boolean @default(false)
+
+  // Google Calendar
+  googleEventId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  service      Service?     @relation(fields: [serviceId], references: [id])
+
+  @@index([organizationId, startTime])
+  @@index([patientId])
+  @@index([status])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// ==================== FACTURACIÓN Y PAGOS ====================
+
+model Invoice {
+  id             String @id @default(cuid())
+  organizationId String
+  patientId      String
+
+  number String // Folio
+  status InvoiceStatus @default(DRAFT)
+
+  subtotal Decimal @db.Decimal(10, 2)
+  tax      Decimal @default(0) @db.Decimal(10, 2)
+  discount Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+  currency String  @default("CLP")
+
+  // Facturación electrónica
+  dteType  String? // Chile: 33 (factura), 39 (boleta) | México: tipo CFDI
+  dteFolio String?
+  dteXml   String? @db.Text
+  dtePdf   String? // URL al PDF
+
+  dueDate DateTime?
+  paidAt  DateTime?
+  sentAt  DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  items        InvoiceItem[]
+  payments     Payment[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, number])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  serviceId   String?
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id])
+}
+
+model Payment {
+  id        String @id @default(cuid())
+  invoiceId String
+  patientId String
+
+  amount   Decimal       @db.Decimal(10, 2)
+  currency String        @default("CLP")
+  method   PaymentMethod
+  status   PaymentStatus @default(PENDING)
+
+  // Pasarela de pago
+  stripePaymentId      String?
+  mercadoPagoPaymentId String?
+
+  reference String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([invoiceId])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  STRIPE
+  MERCADOPAGO
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ==================== CAMPAÑAS Y AUTOMATIZACIONES ====================
+
+model Campaign {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name   String
+  type   CampaignType
+  status CampaignStatus @default(DRAFT)
+
+  // Contenido
+  content    String? @db.Text
+
+  // Audiencia
+  audienceFilter Json? // Filtros para seleccionar pacientes
+  audienceCount  Int   @default(0)
+
+  // Métricas
+  sentCount      Int @default(0)
+  deliveredCount Int @default(0)
+  readCount      Int @default(0)
+  repliedCount   Int @default(0)
+  failedCount    Int @default(0)
+
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+}
+
+enum CampaignType {
+  BROADCAST // Envío masivo
+  REACTIVATION // Reactivar pacientes inactivos
+  REMINDER // Recordatorios
+  FOLLOW_UP // Seguimiento post-cita
+  PROMOTIONAL // Promociones
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+model Automation {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name          String
+  description   String?
+  trigger       AutomationTrigger
+  triggerConfig Json // Configuración del trigger
+  actions       Json // Array de acciones a ejecutar
+
+  isActive       Boolean   @default(true)
+  executionCount Int       @default(0)
+  lastExecutedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+enum AutomationTrigger {
+  NEW_PATIENT // Nuevo paciente registrado
+  APPOINTMENT_BOOKED // Cita agendada
+  APPOINTMENT_COMPLETED // Cita completada
+  APPOINTMENT_NO_SHOW // No show
+  APPOINTMENT_CANCELLED // Cita cancelada
+  PAYMENT_RECEIVED // Pago recibido
+  INVOICE_OVERDUE // Factura vencida
+  PATIENT_INACTIVE // Paciente inactivo por X días
+  MESSAGE_RECEIVED // Mensaje recibido con keyword
+  CUSTOM_DATE // Fecha personalizada (cumpleaños, etc.)
+}
+
+// ==================== DOCUMENTOS Y RAG ====================
+
+model Document {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name    String
+  type    String // faq, protocol, price-list, consent, etc.
+  content String  @db.Text
+  fileUrl String?
+
+  // Embeddings para RAG
+  isIndexed  Boolean @default(false)
+  chunkCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  chunks       DocumentChunk[]
+}
+
+model DocumentChunk {
+  id         String  @id @default(cuid())
+  documentId String
+  content    String  @db.Text
+  embedding  Float[] // pgvector
+  chunkIndex Int
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+model PatientDocument {
+  id        String  @id @default(cuid())
+  patientId String
+  name      String
+  type      String // xray, consent, prescription, photo, etc.
+  fileUrl   String
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+// ==================== RESTAURANTE: MENÚ, MESAS, PEDIDOS ====================
+
+model MenuCategory {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  image          String?
+  sortOrder      Int     @default(0)
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+
+  @@index([organizationId, sortOrder])
+}
+
+model MenuItem {
+  id             String  @id @default(cuid())
+  organizationId String
+  categoryId     String
+  serviceId      String? // Link to Service for pricing
+
+  name         String
+  description  String?
+  image        String?
+  price        Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2) // Precio tachado (promo)
+  sortOrder    Int      @default(0)
+
+  isActive        Boolean @default(true)
+  isAvailable     Boolean @default(true) // Se puede marcar como "agotado"
+  isFeatured      Boolean @default(false) // Plato destacado
+  preparationTime Int     @default(15) // Minutos
+  calories        Int?
+
+  // Inventario
+  trackInventory Boolean @default(false)
+  stockQuantity  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       MenuCategory        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  service        Service?            @relation(fields: [serviceId], references: [id])
+  modifierGroups MenuModifierGroup[]
+  orderItems     OrderItem[]
+
+  @@index([organizationId, categoryId])
+  @@index([organizationId, isActive, isAvailable])
+}
+
+model MenuModifierGroup {
+  id         String @id @default(cuid())
+  menuItemId String
+
+  name      String // "Término de la carne", "Extras", "Tamaño"
+  required  Boolean @default(false)
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1) // 1 = single select, N = multi select
+  sortOrder Int     @default(0)
+
+  menuItem  MenuItem       @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  modifiers MenuModifier[]
+
+  @@index([menuItemId])
+}
+
+model MenuModifier {
+  id      String @id @default(cuid())
+  groupId String
+
+  name        String
+  price       Decimal @default(0) @db.Decimal(10, 2) // Extra price
+  isDefault   Boolean @default(false)
+  isAvailable Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  group MenuModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+// --- MESAS ---
+
+model Table {
+  id             String @id @default(cuid())
+  organizationId String
+
+  number   Int
+  name     String? // "Terraza 1", "VIP", "Barra"
+  section  String? // "Terraza", "Interior", "Segundo piso"
+  capacity Int     @default(4)
+  shape    String  @default("square") // square, round, rectangle
+  posX     Int     @default(0) // Para el plano visual
+  posY     Int     @default(0)
+
+  status   TableStatus @default(AVAILABLE)
+  qrCode   String? // QR code URL/data
+  isActive Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+}
+
+enum TableStatus {
+  AVAILABLE // Libre
+  OCCUPIED // Ocupada
+  RESERVED // Reservada
+  CLEANING // Limpiándose
+  BLOCKED // Bloqueada (mantenimiento)
+}
+
+// --- PEDIDOS ---
+
+model Order {
+  id             String @id @default(cuid())
+  organizationId String
+
+  number Int // Número correlativo del día
+  type   OrderType   @default(DINE_IN)
+  status OrderStatus @default(RECEIVED)
+  source OrderSource @default(POS)
+
+  // Cliente (opcional)
+  patientId     String?
+  customerName  String?
+  customerPhone String?
+
+  // Mesa (para dine-in)
+  tableId String?
+  guests  Int?
+
+  // Delivery
+  deliveryAddress String?
+  deliveryNotes   String?
+  estimatedTime   Int? // Minutos estimados
+
+  // Totales
+  subtotal Decimal @db.Decimal(10, 2)
+  tax      Decimal @default(0) @db.Decimal(10, 2)
+  discount Decimal @default(0) @db.Decimal(10, 2)
+  tip      Decimal @default(0) @db.Decimal(10, 2)
+  total    Decimal @db.Decimal(10, 2)
+
+  // Pago
+  paymentMethod PaymentMethod?
+  paymentStatus PaymentStatus  @default(PENDING)
+  paidAt        DateTime?
+
+  // Notas
+  notes        String?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient?     @relation(fields: [patientId], references: [id])
+  table        Table?       @relation(fields: [tableId], references: [id])
+  items        OrderItem[]
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@index([organizationId, type, status])
+  @@index([tableId])
+}
+
+enum OrderType {
+  DINE_IN // En mesa
+  TAKEAWAY // Para llevar
+  DELIVERY // Delivery
+  QR_ORDER // Pedido desde QR
+}
+
+enum OrderStatus {
+  RECEIVED // Recibido
+  CONFIRMED // Confirmado
+  PREPARING // En cocina
+  READY // Listo para servir/retirar
+  DELIVERED // Entregado/servido
+  COMPLETED // Finalizado y pagado
+  CANCELLED // Cancelado
+}
+
+enum OrderSource {
+  POS // Punto de venta (garzón/cajero)
+  QR // QR de mesa
+  WHATSAPP // Pedido por WhatsApp
+  WEB // Página web pública
+  PHONE // Llamada telefónica
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  menuItemId String?
+
+  name      String
+  quantity  Int     @default(1)
+  unitPrice Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+  notes     String? // "Sin cebolla", "Extra picante"
+  modifiers Json? // [{ name: "Término medio", price: 0 }]
+
+  status OrderItemStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+}
+
+enum OrderItemStatus {
+  PENDING // Esperando
+  PREPARING // Preparando
+  READY // Listo
+  SERVED // Servido
+  CANCELLED // Cancelado
+}
+
+// ==================== INVENTARIO ====================
+
+model InventoryCategory {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        InventoryItem[]
+
+  @@unique([organizationId, name])
+}
+
+model InventoryItem {
+  id             String @id @default(cuid())
+  organizationId String
+  categoryId     String?
+
+  name        String
+  sku         String?
+  unit        String   @default("unidad") // unidad, kg, litro, porción
+  currentStock Decimal @default(0) @db.Decimal(10, 2)
+  minStock     Decimal @default(0) @db.Decimal(10, 2) // Alert threshold
+  maxStock     Decimal? @db.Decimal(10, 2)
+  costPerUnit  Decimal @default(0) @db.Decimal(10, 2)
+  supplier     String?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     InventoryCategory? @relation(fields: [categoryId], references: [id])
+  movements    StockMovement[]
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, categoryId])
+}
+
+model StockMovement {
+  id              String @id @default(cuid())
+  inventoryItemId String
+  organizationId  String
+
+  type     StockMovementType
+  quantity Decimal @db.Decimal(10, 2)
+  reason   String?
+  orderId  String? // Link to order that caused the movement
+
+  createdAt DateTime @default(now())
+  createdBy String? // User ID
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryItemId, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+enum StockMovementType {
+  PURCHASE    // Compra/ingreso
+  SALE        // Venta/consumo
+  ADJUSTMENT  // Ajuste manual
+  WASTE       // Merma
+  TRANSFER    // Transferencia
+}
+
+// ==================== PERSONAL ====================
+
+model Staff {
+  id             String @id @default(cuid())
+  organizationId String
+
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  rut       String? // Chile ID
+  avatar    String?
+
+  role     StaffRole @default(WAITER)
+  pin      String?   // 4-digit PIN for POS login
+  isActive Boolean   @default(true)
+
+  // Salary
+  salary       Decimal? @db.Decimal(10, 2)
+  salaryType   String?  @default("monthly") // monthly, hourly
+
+  hiredAt     DateTime @default(now())
+  terminatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shifts       Shift[]
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, role])
+}
+
+enum StaffRole {
+  MANAGER    // Administrador
+  CHEF       // Chef / Jefe de cocina
+  COOK       // Cocinero
+  WAITER     // Garzón/Mesero
+  BARTENDER  // Barman
+  CASHIER    // Cajero
+  HOST       // Anfitrión
+  DELIVERY   // Repartidor
+  CLEANER    // Aseo
+}
+
+model Shift {
+  id             String @id @default(cuid())
+  staffId        String
+  organizationId String
+
+  date      DateTime @db.Date
+  startTime DateTime
+  endTime   DateTime?
+  breakMinutes Int @default(0)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, date])
+  @@index([organizationId, date])
+}
+
+// ==================== FIDELIZACIÓN ====================
+
+model LoyaltyProgram {
+  id             String @id @default(cuid())
+  organizationId String @unique
+
+  name            String @default("Programa de Fidelización")
+  pointsPerCLP    Decimal @default(0.01) @db.Decimal(10, 4) // Points per CLP spent
+  pointsToRedeem  Int     @default(100) // Points needed per reward
+  rewardValue     Decimal @default(1000) @db.Decimal(10, 2) // CLP discount per redemption
+  isActive        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rewards      LoyaltyReward[]
+}
+
+model LoyaltyReward {
+  id               String @id @default(cuid())
+  loyaltyProgramId String
+
+  name        String // "Postre gratis", "10% descuento"
+  description String?
+  pointsCost  Int
+  type        RewardType @default(DISCOUNT)
+  value       Decimal @db.Decimal(10, 2) // Discount amount or percentage
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  program     LoyaltyProgram @relation(fields: [loyaltyProgramId], references: [id], onDelete: Cascade)
+  redemptions LoyaltyRedemption[]
+}
+
+model LoyaltyPoints {
+  id             String @id @default(cuid())
+  organizationId String
+  patientId      String
+
+  totalPoints     Int @default(0)
+  availablePoints Int @default(0)
+  lifetimePoints  Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, patientId])
+}
+
+model LoyaltyTransaction {
+  id             String @id @default(cuid())
+  organizationId String
+  patientId      String
+
+  type   LoyaltyTransactionType
+  points Int
+  orderId String?
+  description String?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, patientId, createdAt])
+}
+
+model LoyaltyRedemption {
+  id        String @id @default(cuid())
+  rewardId  String
+  patientId String
+  orderId   String?
+
+  pointsUsed Int
+  status     RedemptionStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  reward  LoyaltyReward @relation(fields: [rewardId], references: [id])
+
+  @@index([patientId, createdAt])
+}
+
+enum RewardType {
+  DISCOUNT    // Descuento fijo
+  PERCENTAGE  // Porcentaje
+  FREE_ITEM   // Item gratis
+}
+
+enum LoyaltyTransactionType {
+  EARN     // Puntos ganados
+  REDEEM   // Puntos canjeados
+  ADJUST   // Ajuste manual
+  EXPIRE   // Expiración
+}
+
+enum RedemptionStatus {
+  PENDING
+  APPLIED
+  CANCELLED
+}
+
+// ==================== MULTI-SUCURSAL ====================
+
+model Branch {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name    String // "Sucursal Providencia", "Sucursal Las Condes"
+  slug    String
+  address String?
+  phone   String?
+  email   String?
+
+  // Location
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(10, 8)
+
+  // Hours
+  businessHours Json?
+
+  isActive  Boolean @default(true)
+  isMain    Boolean @default(false) // Sucursal principal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, isActive])
+}
+
+// ==================== NOTIFICACIONES Y AUDITORÍA ====================
+
+model Notification {
+  id             String @id @default(cuid())
+  organizationId String
+
+  type   String // new_message, appointment_reminder, payment, etc.
+  title  String
+  body   String
+  data   Json?
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isRead, createdAt])
+}
+
+model AuditLog {
+  id             String @id @default(cuid())
+  organizationId String
+
+  action    String // create, update, delete, login, etc.
+  entity    String // patient, appointment, invoice, etc.
+  entityId  String?
+  details   Json?
+  userId    String?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entity])
+}
